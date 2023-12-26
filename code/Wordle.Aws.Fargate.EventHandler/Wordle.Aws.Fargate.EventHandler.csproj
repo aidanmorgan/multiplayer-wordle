@@ -1,0 +1,33 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+        <RootNamespace>Aws.Fargate.EventHandler</RootNamespace>
+        <PackageId>Wordle.Aws.Fargate.EventHandler</PackageId>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Wordle.Aws.Common\Wordle.Aws.Common.csproj" />
+      <ProjectReference Include="..\Wordle.Clock\Wordle.Clock.csproj" />
+      <ProjectReference Include="..\Wordle.Commands\Wordle.Commands.csproj" />
+      <ProjectReference Include="..\Wordle.Events\Wordle.Events.csproj" />
+      <ProjectReference Include="..\Wordle.Logger\Wordle.Logger.csproj" />
+      <ProjectReference Include="..\Wordle.Queries\Wordle.Queries.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Autofac" Version="7.1.0" />
+      <PackageReference Include="AWSSDK.SQS" Version="3.7.300.25" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Content Include="..\.dockerignore">
+        <Link>.dockerignore</Link>
+      </Content>
+    </ItemGroup>
+
+</Project>

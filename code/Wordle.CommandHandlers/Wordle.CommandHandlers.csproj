@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="MediatR" Version="12.2.0" />
+      <PackageReference Include="Ulid" Version="1.3.3" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Wordle.Clock\Wordle.Clock.csproj" />
+      <ProjectReference Include="..\Wordle.Commands\Wordle.Commands.csproj" />
+      <ProjectReference Include="..\Wordle.Common\Wordle.Common.csproj" />
+      <ProjectReference Include="..\Wordle.Dictionary\Wordle.Dictionary.csproj" />
+      <ProjectReference Include="..\Wordle.Events\Wordle.Events.csproj" />
+      <ProjectReference Include="..\Wordle.Logger\Wordle.Logger.csproj" />
+      <ProjectReference Include="..\Wordle.Persistence.Dynamo\Wordle.Persistence.Dynamo.csproj" />
+      <ProjectReference Include="..\Wordle.Persistence\Wordle.Persistence.csproj" />
+      <ProjectReference Include="..\Wordle.Queries\Wordle.Queries.csproj" />
+    </ItemGroup>
+
+</Project>

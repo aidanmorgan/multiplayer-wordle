@@ -1,0 +1,48 @@
+services:
+  public-api:
+    image: aidanmorgan/wordle-publicapi
+    build:
+      context: .
+      dockerfile: Wordle.Aws.Fargate.PublicApi/Dockerfile
+      args:
+        - BUILD_CONFIGURATION=Development
+    env_file: 
+      - .development.env
+      - .sensitive.env
+    environment:
+      - ASPNETCORE_URLS=http://[::]:5100
+    volumes:
+      - $HOME/.aws/credentials:/home/app/.aws/credentials:ro
+    ports:
+      - 5100:5100
+      
+  private-api:
+    image: aidanmorgan/wordle-privateapi
+    build:
+      context: .
+      dockerfile: Wordle.Aws.Fargate.PrivateApi/Dockerfile
+      args:
+        - BUILD_CONFIGURATION=Development
+    env_file:
+      - .development.env
+      - .sensitive.env
+    environment:
+      - ASPNETCORE_URLS=http://[::]:5200
+    volumes:
+      - $HOME/.aws/credentials:/home/app/.aws/credentials:ro
+    ports:
+      - 5200:5200
+  
+  event-handler:
+    image: aidanmorgan/wordle-eventhandler
+    build:
+      context: .
+      dockerfile: Wordle.Aws.Fargate.EventHandler/Dockerfile
+      args:
+        - BUILD_CONFIGURATION=Development
+    env_file:
+      - .development.env      
+      - .sensitive.env
+    volumes:
+      - $HOME/.aws/credentials:/home/app/.aws/credentials:ro
+      

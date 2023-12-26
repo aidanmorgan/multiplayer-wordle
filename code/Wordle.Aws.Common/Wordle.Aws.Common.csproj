@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Wordle.Aws.DictionaryImpl\Wordle.Aws.DictionaryImpl.csproj" />
+      <ProjectReference Include="..\Wordle.Aws.EventBridgeImpl\Wordle.Aws.EventBridgeImpl.csproj" />
+      <ProjectReference Include="..\Wordle.Clock\Wordle.Clock.csproj" />
+      <ProjectReference Include="..\Wordle.CommandHandlers\Wordle.CommandHandlers.csproj" />
+      <ProjectReference Include="..\Wordle.Persistence.Dynamo\Wordle.Persistence.Dynamo.csproj" />
+      <ProjectReference Include="..\Wordle.QueryHandlers.Dynamo\Wordle.QueryHandlers.Dynamo.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Autofac" Version="7.1.0" />
+      <PackageReference Include="Autofac.Extensions.DependencyInjection" Version="8.0.0" />
+      <PackageReference Include="AWSSDK.S3" Version="3.7.305" />
+      <PackageReference Include="AWSSDK.SQS" Version="3.7.300.25" />
+      <PackageReference Include="MediatR.Extensions.Autofac.DependencyInjection" Version="11.3.0" />
+    </ItemGroup>
+
+</Project>

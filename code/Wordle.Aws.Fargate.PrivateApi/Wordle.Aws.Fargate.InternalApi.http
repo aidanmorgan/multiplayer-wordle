@@ -1,0 +1,6 @@
+@Wordle.Aws.Fargate.InternalApi_HostAddress = http://localhost:5148
+
+GET {{Wordle.Aws.Fargate.InternalApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
