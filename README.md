@@ -48,3 +48,21 @@ The configuration for each game (called a `Session` in the codebase) allows the 
 * `Round Votes Per User` - Then number of words, or votes, that a user is allowed to submit per round.
 * `Tiebreaker Strategy` - If the criteria to end a round is met, but there are words with the same number of votes then how to select the word for the round. Options include: `RANDOM`, `FIRST_IN`, `LAST_IN`
 * `Maximum Round Duration` - The maximum amount of time a round is allowed to be `ACTIVE` for before the game is forced into a `TERMINATED` state
+
+# AWS Services
+
+## DynamoDB
+Stores the state of all game objects using a single-table design as well as the various dictionary implementations (as a shared table)
+
+## Event Bridge
+All changes to the tenant, session or round objects generate events that are published to an Event Bridge
+
+## SQS
+All events from the Event Bridge are serialised to the SQS queue for processing to implement game logic.
+
+## Fargate
+Runs containerised applications that implement game logic, APIs etc.
+
+## S3
+Stores PNG's of generated Wordle boards for display to users.
+
