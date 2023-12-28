@@ -13,14 +13,14 @@ public class AddGuessToRoundCommandHandler : IRequestHandler<AddGuessToRoundComm
 {
     private readonly IMediator _mediator;
     private readonly IClock _clock;
-    private readonly IGameUnitOfWork _gameUnitOfWork;
+    private readonly IGameUnitOfWorkFactory _uowFactory;
 
 
-    public AddGuessToRoundCommandHandler(IMediator mediator, IClock clock, IGameUnitOfWork gameUnitOfWork)
+    public AddGuessToRoundCommandHandler(IMediator mediator, IClock clock, IGameUnitOfWorkFactory factory)
     {
         _mediator = mediator;
         _clock = clock;
-        _gameUnitOfWork = gameUnitOfWork;
+        _uowFactory = factory;
     }
 
     public async Task<Unit> Handle(AddGuessToRoundCommand request, CancellationToken cancellationToken)
@@ -59,7 +59,8 @@ public class AddGuessToRoundCommandHandler : IRequestHandler<AddGuessToRoundComm
 
         Guid guessId = Ulid.NewUlid().ToGuid();
 
-        await _gameUnitOfWork.Guesses.AddAsync(new Guess()
+        var uow = _uowFactory.Create();
+        await uow.Guesses.AddAsync(new Guess()
         {
             Id = guessId,
             Timestamp = request.Timestamp,
@@ -69,9 +70,9 @@ public class AddGuessToRoundCommandHandler : IRequestHandler<AddGuessToRoundComm
             User = request.User
         });
 
-        bool roundEndUpdated = await UpdateRoundEndForNewGuess(session, options, round);
+        bool roundEndUpdated = await UpdateRoundEndForNewGuess(uow, session, options, round);
         
-        await _gameUnitOfWork.SaveAsync();
+        await uow.SaveAsync();
         await _mediator.Publish(new GuessAdded(guessId, round.Id, session.Id), cancellationToken);
         
         if (roundEndUpdated)
@@ -82,7 +83,7 @@ public class AddGuessToRoundCommandHandler : IRequestHandler<AddGuessToRoundComm
         return Unit.Value;
     }
 
-    private async Task<bool> UpdateRoundEndForNewGuess(Session session, Options options, Round round)
+    private async Task<bool> UpdateRoundEndForNewGuess(IGameUnitOfWork uow, Session session, Options options, Round round)
     {
         if (session.ActiveRoundEnd == null)
         {
@@ -113,7 +114,7 @@ public class AddGuessToRoundCommandHandler : IRequestHandler<AddGuessToRoundComm
             if (numExtensions < options.MaximumRoundExtensions)
             {
                 session.ActiveRoundEnd += TimeSpan.FromSeconds(options.RoundExtensionLength);
-                await _gameUnitOfWork.Sessions.UpdateAsync(session);
+                await uow.Sessions.UpdateAsync(session);
 
                 return true;
             }

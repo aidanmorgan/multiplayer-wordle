@@ -5,8 +5,8 @@ namespace Wordle.Persistence.Dynamo;
 
 public class DynamoGameConfiguration
 {
-    public string TableName { get; set; }
-    public IAmazonDynamoDB Context { get; set; }
+    public string TableName { get; init; }
+    public IAmazonDynamoDB Context { get; private set; }
 
     public DynamoGameConfiguration(IAmazonDynamoDB context, string tableName)
     {

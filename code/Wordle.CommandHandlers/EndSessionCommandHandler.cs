@@ -11,11 +11,11 @@ namespace Wordle.CommandHandlers;
 public class EndSessionCommandHandler : IRequestHandler<EndSessionCommand, Unit>
 {
     private readonly IClock _clock;
-    private readonly IGameUnitOfWork _gameUnitOfWork;
+    private readonly IGameUnitOfWorkFactory _gameUnitOfWork;
     private readonly IMediator _mediator;
 
 
-    public EndSessionCommandHandler(IClock clock, IGameUnitOfWork gameUnitOfWork, IMediator mediator)
+    public EndSessionCommandHandler(IClock clock, IGameUnitOfWorkFactory gameUnitOfWork, IMediator mediator)
     {
         _clock = clock;
         _gameUnitOfWork = gameUnitOfWork;
@@ -48,11 +48,13 @@ public class EndSessionCommandHandler : IRequestHandler<EndSessionCommand, Unit>
             throw new CommandException($"Cannot end Session with id {request.SessionId}, the session is not {nameof(SessionState.ACTIVE)}.");
         }
 
+        var uow = _gameUnitOfWork.Create();
+        
         session.State = request.Success ? SessionState.SUCCESS : SessionState.FAIL;
-
-        await _gameUnitOfWork.Sessions
+        
+        await uow.Sessions
             .UpdateAsync(session)
-            .ContinueWith(x => _gameUnitOfWork.SaveAsync(), cancellationToken);
+            .ContinueWith(x => uow.SaveAsync(), cancellationToken);
 
         if (request.Success)
         {

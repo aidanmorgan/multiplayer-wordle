@@ -1,12 +1,15 @@
+using System.ComponentModel.Design;
 using System.Net;
 using Autofac;
-using Autofac.Extensions.DependencyInjection;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Queries;
 using Wordle.Aws.Common;
 using Wordle.Clock;
 using Wordle.Commands;
+using Wordle.Dictionary;
+using Wordle.Model;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,9 +18,16 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-var container = new AutofacConfigurationBuilder().AddGamePersistence().AddEventBridge().Build();
+var container = new AutofacConfigurationBuilder()
+    .AddGamePersistence()
+    .AddDictionary()
+    .AddEventPublishing()
+    .Build();
+
 var mediatr = container.Resolve<IMediator>();
 var clock = container.Resolve<IClock>();
+var dictionary = container.Resolve<IWordleDictionaryService>();
+
 
 
 if (app.Environment.IsDevelopment())
@@ -30,17 +40,39 @@ else
     app.UseHttpsRedirection();
 }
 
+app.MapPut("/tenants/{tenantId}/options", async (string tenantId) =>
+{
+    return HttpStatusCode.NotImplemented;
+});
 
-app.MapPost("/tenants/{tenantId}/submit", async (string tenantId, [FromHeader] string userName, [FromBody] string word) =>
+app.MapPut("/tenants/{tenantId}", async (string tenantId) => {
+    var activeSession = await mediatr.Send(new GetActiveSessionForTenantQuery("web", tenantId));
+
+    if (activeSession.HasValue)
+    {
+        app.Logger.Log(LogLevel.Error, $"Cannot submit word, Tenant {tenantId} has active Sessopn {activeSession.Value}");
+        return HttpStatusCode.BadRequest;
+    }
+
+    var options = (await mediatr.Send(new GetOptionsForTenantQuery("web", tenantId))) ?? new Options();
+    
+    var newWord = await dictionary.RandomWord(options);
+    var newSession = await mediatr.Send(new CreateNewSessionCommand("web", tenantId, newWord, options));
+
+    return HttpStatusCode.Created;
+});
+
+app.MapPost("/tenants/{tenantId}/guess", async (string tenantId, [FromBody] Guess guess) =>
 {
     var activeSession = await mediatr.Send(new GetActiveSessionForTenantQuery("web", tenantId));
 
     if (!activeSession.HasValue)
     {
+        app.Logger.Log(LogLevel.Error, $"Cannot submit word, no active Session for Tenant {tenantId}");
         return HttpStatusCode.NotFound;
     }
 
-    await mediatr.Send(new AddGuessToRoundCommand(activeSession.Value, userName, word, clock.UtcNow()));
+    await mediatr.Send(new AddGuessToRoundCommand(activeSession.Value, guess.UserName, guess.Word, clock.UtcNow()));
     return HttpStatusCode.Accepted;
 });
 
@@ -56,3 +88,10 @@ app.MapGet("/health", () =>
 
 
 app.Run();
+
+
+class Guess
+{
+    public string UserName { get; set; }
+    public string Word { get; set; }
+}

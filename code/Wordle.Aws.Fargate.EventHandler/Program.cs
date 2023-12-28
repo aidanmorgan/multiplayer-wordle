@@ -1,12 +1,11 @@
 ﻿// See https://aka.ms/new-console-template for more information
 
-using System.ComponentModel;
-using System.Text;
-using System.Text.Json;
 using Amazon.SQS;
 using Amazon.SQS.Model;
 using Autofac;
 using MediatR;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Queries;
 using Wordle.Aws.Common;
 using Wordle.Clock;
@@ -14,26 +13,34 @@ using Wordle.Commands;
 using Wordle.Events;
 using Wordle.Logger;
 using Wordle.Model;
+using Wordle.Persistence;
 using IContainer = Autofac.IContainer;
+using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace Aws.Fargate.EventHandler;
 
 public class Program
 {
-    private const int MAX_EVENT_MESSAGES = 32;
-    private const int MAX_TIMEOUT_MESSAGES = 32;
+    private static readonly Guid InstanceId = Guid.NewGuid();
+    
+    private const int MAX_EVENT_MESSAGES = 5;
+    private const int MAX_TIMEOUT_MESSAGES = 5;
+    private const int READ_WAIT_TIME_SECONDS = 10;
     
     private readonly IMediator _mediator;
     private readonly ILogger _logger;
     private readonly IClock _clock;
+    private readonly IGameUnitOfWorkFactory _uowFactory;
     
     private readonly IAmazonSQS _sqs;
+    
 
     public static void Main()
     {
         var configBuilder = new AutofacConfigurationBuilder()
             .AddGamePersistence()
             .AddDictionary()
+            .AddEventPublishing()
             .AddEventHandling();
         
         var program = new Program(configBuilder.Build()); 
@@ -47,6 +54,7 @@ public class Program
         _sqs = container.Resolve<IAmazonSQS>();
 
         _logger = container.Resolve<ILogger>();
+        _uowFactory = container.Resolve<IGameUnitOfWorkFactory>();
     }
 
     private void Run()
@@ -57,39 +65,99 @@ public class Program
         {
             while (!token.IsCancellationRequested)
             {
-                var messages = await _sqs.ReceiveMessageAsync(new ReceiveMessageRequest
+                try
                 {
-                    QueueUrl = EnvironmentVariables.EventQueueUrl,
-                    MaxNumberOfMessages = MAX_EVENT_MESSAGES
-                }, token.Token);
+                    var messages = await _sqs.ReceiveMessageAsync(new ReceiveMessageRequest
+                    {
+                        QueueUrl = EnvironmentVariables.EventQueueUrl,
+                        MaxNumberOfMessages = MAX_EVENT_MESSAGES,
+                        WaitTimeSeconds = READ_WAIT_TIME_SECONDS
+                    }, token.Token);
 
-                foreach (var message in messages?.Messages ?? [])
+                    foreach (var message in messages?.Messages ?? [])
+                    {
+                        var decoded = JsonConvert.DeserializeObject<JObject>(message.Body);
+                        if (decoded != null)
+                        {
+                            // this janky code is just here to get the event type out of the message
+                            // so we can determine how to cast the event as appropriate when we want to
+                            // process.
+                            var eventType = decoded.GetValue("detail-type").Value<string>();
+
+                            if (!string.IsNullOrEmpty(eventType))
+                            {
+                                if (eventType.EndsWith(nameof(NewSessionStarted)))
+                                {
+                                    await Handle(decoded["detail"].ToObject<NewSessionStarted>(), token.Token);
+                                }
+                                else if (eventType.EndsWith(nameof(RoundEnded)))
+                                {
+                                    await Handle(decoded["detail"].ToObject<RoundEnded>(), token.Token);
+                                }
+                                else if (eventType.EndsWith(nameof(NewRoundStarted)))
+                                {
+                                    await SubmitTimeout(decoded["detail"].ToObject<NewRoundStarted>(), token.Token);
+                                }
+                                else if (eventType.EndsWith(nameof(RoundExtended)))
+                                {
+                                    await SubmitTimeout(decoded["detail"].ToObject<RoundExtended>(), token.Token);
+                                }
+                                else
+                                {
+                                    _logger.Log($"Ignoring event {eventType}");
+                                }
+                            }
+                        }
+                        
+                        // delete the message so it doesnt get reprocessed
+                        await _sqs.DeleteMessageAsync(new DeleteMessageRequest()
+                        {
+                            QueueUrl = EnvironmentVariables.EventQueueUrl,
+                            ReceiptHandle = message.ReceiptHandle
+                        });
+                    }
+                }
+                catch (Exception x)
                 {
-                    
+                    _logger.Log("exception", $"Exception thrown processing events.");
+                    _logger.Log(x.Message);
                 }
             }
         }, token.Token);
 
         var gameRenewalQueue = Task.Run(async () =>
         {
-            var messages = await _sqs.ReceiveMessageAsync(new ReceiveMessageRequest
+            while (!token.IsCancellationRequested)
             {
-                QueueUrl = EnvironmentVariables.TimeoutQueueUrl,
-                MaxNumberOfMessages = MAX_TIMEOUT_MESSAGES
-            }, token.Token);
-
-            foreach (var message in messages?.Messages ?? [])
-            {
-                using var stream = new MemoryStream( Encoding.UTF8.GetBytes( message.Body ) );
-                var payload = await JsonSerializer.DeserializeAsync<Payload>(stream, cancellationToken: token.Token);
-
-                if (payload != null)
+                try
                 {
-                    await Handle(payload, token);
+                    var messages = await _sqs.ReceiveMessageAsync(new ReceiveMessageRequest
+                    {
+                        QueueUrl = EnvironmentVariables.TimeoutQueueUrl,
+                        MaxNumberOfMessages = MAX_TIMEOUT_MESSAGES,
+                        WaitTimeSeconds = READ_WAIT_TIME_SECONDS
+                    }, token.Token);
+
+                    foreach (var message in messages?.Messages ?? [])
+                    {
+                        var payload = JsonConvert.DeserializeObject<TimeoutPayload>(message.Body);
+
+                        if (payload != null)
+                        {
+                            await HandleTimeout(payload, token);
+                        }
+                        
+                        await _sqs.DeleteMessageAsync(new DeleteMessageRequest()
+                        {
+                            QueueUrl = EnvironmentVariables.TimeoutQueueUrl,
+                            ReceiptHandle = message.ReceiptHandle
+                        });
+                    }
                 }
-                else
+                catch (Exception x)
                 {
-                    _logger.Log($"Received a Round Extension Payload that cannot be deserialized.");
+                    _logger.Log("exception", $"Exception thrown processing timeouts.");
+                    _logger.Log(x.Message);
                 }
             }
         }, token.Token);
@@ -107,9 +175,25 @@ public class Program
         }
     }
 
-
-    private async Task HandleRoundEndEvent(RoundEnded detail)
+    private Task Handle(NewSessionStarted x, CancellationToken cancellationToken)
     {
+        if (x.SessionId == Guid.Empty)
+        {
+            _logger.Log($"Ignoring invalid {nameof(NewSessionStarted)} message.");
+            return Task.CompletedTask; 
+        }
+        
+        return Task.CompletedTask;
+    }
+
+    private async Task Handle(RoundEnded detail, CancellationToken cancellationToken)
+    {
+        if (detail.SessionId == Guid.Empty || detail.RoundId == Guid.Empty)
+        {
+            _logger.Log($"Ignoring invalid {nameof(RoundExtended)} message.");
+            return; 
+        }
+        
         var q = await _mediator.Send(new GetSessionByIdQuery(detail.SessionId));
 
         if (!q.HasValue)
@@ -159,33 +243,67 @@ public class Program
         }
     }
     
-    
     // Called when the event bus publishes a NewRoundStarted event, will enqueue an automated timeout
     // that will extend the round if required
-    public async Task Handle(NewRoundStarted notification, CancellationToken cancellationToken)
+    public async Task SubmitTimeout(NewRoundStarted detail, CancellationToken cancellationToken)
     {
-        _logger.Log($"Received {nameof(NewRoundStarted)} event for Round {notification.RoundId}. Sending to SQS.");
-        
-        await _sqs.SendMessageAsync(new SendMessageRequest(EnvironmentVariables.TimeoutQueueUrl, JsonSerializer.Serialize(Payload.Create(notification)))
+        if (detail.SessionId == Guid.Empty || detail.RoundId == Guid.Empty)
         {
-            DelaySeconds = (int)Math.Max(Math.Ceiling(notification.RoundExpiry.Subtract(_clock.UtcNow()).TotalSeconds), 0)
-        }, cancellationToken);
+            _logger.Log($"Ignoring invalid {nameof(NewRoundStarted)} message.");
+            return; 
+        }
+        
+        _logger.Log($"Received {nameof(NewRoundStarted)} event for Round {detail.RoundId}. Sending to SQS.");
+
+        try
+        {
+            await _sqs.SendMessageAsync(new SendMessageRequest(EnvironmentVariables.TimeoutQueueUrl,
+                JsonConvert.SerializeObject(TimeoutPayload.Create(detail)))
+            {
+                DelaySeconds = (int)Math.Max(Math.Ceiling(detail.RoundExpiry.Subtract(_clock.UtcNow()).TotalSeconds), 0)
+            }, cancellationToken);
+        }
+        catch (Exception x)
+        {
+            throw;
+        }
     }
 
     // Called when the event bus publishes a RoundExtended event, will enqueue an automated timeout
     // that will extend the round if required.
-    public async Task Handle(RoundExtended notification, CancellationToken cancellationToken)
+    public async Task SubmitTimeout(RoundExtended notification, CancellationToken cancellationToken)
     {
-        _logger.Log($"Received {nameof(RoundExtended)} event for Round {notification.RoundId}. Sending to SQS.");
-        
-        await _sqs.SendMessageAsync(new SendMessageRequest(EnvironmentVariables.TimeoutQueueUrl,JsonSerializer.Serialize(Payload.Create(notification)))
+        if (notification.SessionId == Guid.Empty || notification.RoundId == Guid.Empty)
         {
-            DelaySeconds = (int)Math.Max(Math.Ceiling(notification.RoundExpiry.Subtract(_clock.UtcNow()).TotalSeconds), 0)
-        }, cancellationToken);    
+            _logger.Log($"Ignoring invalid {nameof(RoundExtended)} message.");
+            return; 
+        }
+
+        _logger.Log($"Received {nameof(RoundExtended)} event for Round {notification.RoundId}. Sending to SQS.");
+
+        try
+        {
+            await _sqs.SendMessageAsync(new SendMessageRequest(EnvironmentVariables.TimeoutQueueUrl,
+                JsonConvert.SerializeObject(TimeoutPayload.Create(notification)))
+            {
+                DelaySeconds =
+                    (int)Math.Max(Math.Ceiling(notification.RoundExpiry.Subtract(_clock.UtcNow()).TotalSeconds), 0)
+            }, cancellationToken);
+        }
+        catch (Exception)
+        {
+            throw;
+        }
     }
     
-    private async Task Handle(Payload p, CancellationTokenSource cancellationToken)
+    private async Task HandleTimeout(TimeoutPayload p, CancellationTokenSource cancellationToken)
     {
+        if (p.SessionId == Guid.Empty || p.RoundId == Guid.Empty)
+        {
+            _logger.Log($"Ignoring invalid {nameof(TimeoutPayload)} message.");
+            return; 
+        }
+        
         var qr = await _mediator.Send(new GetSessionByIdQuery(p.SessionId));
 
         if (!qr.HasValue)
@@ -219,11 +337,14 @@ public class Program
             _logger.Log($"Cannot end Round {p.RoundId} for Session {session.Id}. it is not the active round.");
             return;
         }
-        
-        // try to end the round, if it can't be ended then it wil be automatically extended anyway
-        await _mediator.Send(new EndActiveRoundCommand(session.Id));
-    }
 
-    
-    
+        try
+        {
+            await _mediator.Send(new EndActiveRoundCommand(session.Id));
+        }
+        catch (CommandException)
+        {
+            // ignore
+        }
+    }
 }

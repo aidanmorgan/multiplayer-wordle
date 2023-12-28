@@ -1,0 +1,20 @@
+using Amazon.DynamoDBv2;
+
+namespace Wordle.Persistence.Dynamo;
+
+public class DynamoGameUnitOfWorkFactory : IGameUnitOfWorkFactory
+{
+    private readonly DynamoGameConfiguration _dynamo;
+    private readonly IDynamoMappers _mappers;
+
+    public DynamoGameUnitOfWorkFactory(DynamoGameConfiguration config, IDynamoMappers mappers)
+    {
+        this._dynamo = config;
+        this._mappers = mappers;
+    }
+
+    public IGameUnitOfWork Create()
+    {
+        return new DynamoGameUnitOfWork(_dynamo, _mappers);
+    }
+}

@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Wordle.Events;
 
 public class NewRoundStarted : IEvent

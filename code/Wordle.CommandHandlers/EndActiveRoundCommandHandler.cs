@@ -13,15 +13,15 @@ public class EndActiveRoundCommandHandler : IRequestHandler<EndActiveRoundComman
 {
     private static readonly Random Random = new Random();
     private readonly IClock _clock;
-    private readonly IGameUnitOfWork _gameUnitOfWork;
+    private readonly IGameUnitOfWorkFactory _uowFactory;
     private readonly IMediator _mediator;
     private readonly ILogger _logger;
 
-    public EndActiveRoundCommandHandler(IClock clock, IGameUnitOfWork gameUnitOfWork, ILogger logger, IMediator mediator)
+    public EndActiveRoundCommandHandler(IClock clock, IGameUnitOfWorkFactory uowFactory, ILogger logger, IMediator mediator)
     {
         _clock = clock;
         _logger = logger;
-        _gameUnitOfWork = gameUnitOfWork;
+        _uowFactory = uowFactory;
         _mediator = mediator;
     }
 
@@ -63,12 +63,13 @@ public class EndActiveRoundCommandHandler : IRequestHandler<EndActiveRoundComman
 
         var guesses = await _mediator.Send(new GetGuessesForRoundQuery(round.Id), cancellationToken);
         
+        var uow = _uowFactory.Create();
+        
         if (!request.Force)
         {
             if (session.ActiveRoundEnd.Value.IsAfter(_clock.UtcNow()))
             {
                 _logger.Log($"Attempting to end round {session.ActiveRoundId} but it is in the future.");
-                
                 throw new CommandException($"Cannot end active Round{session.ActiveRoundId} for Session {session.Id} as it is in the future.");
             }
 
@@ -83,11 +84,13 @@ public class EndActiveRoundCommandHandler : IRequestHandler<EndActiveRoundComman
 
                 if (numExtensions < options.MaximumRoundExtensions)
                 {
-                    session.ActiveRoundEnd += TimeSpan.FromSeconds(options.RoundExtensionLength);
-
-                    await _gameUnitOfWork.Sessions.UpdateAsync(session);
+                    session.ActiveRoundEnd = session.ActiveRoundEnd.Value.Add(TimeSpan.FromSeconds(options.RoundExtensionLength));
+                    await uow.Sessions.UpdateAsync(session);
+                    await uow.SaveAsync();
+                    
                     await _mediator.Publish(new RoundExtended(session.Id, round.Id, session.ActiveRoundEnd.Value), cancellationToken);
                     
+                    _logger.Log($"Extending Round {round.Id} as the end criteria is unmet. Next check: {session.ActiveRoundEnd}");
                     return Unit.Value;
                 }
             }
@@ -102,28 +105,32 @@ public class EndActiveRoundCommandHandler : IRequestHandler<EndActiveRoundComman
             session.State = SessionState.TERMINATED;
             session.ActiveRoundId = null;
             session.ActiveRoundEnd = null;
-
-            await _gameUnitOfWork.Rounds.UpdateAsync(round);
-            await _gameUnitOfWork.Sessions.UpdateAsync(session);
-            await _gameUnitOfWork.SaveAsync();
+            
+            await uow.Rounds.UpdateAsync(round);
+            await uow.Sessions.UpdateAsync(session);
+            await uow.SaveAsync();
 
             await _mediator.Publish(new RoundTerminated(session.Id, round.Id), cancellationToken);
             await _mediator.Publish(new SessionTerminated(session.Id), cancellationToken);
 
+            _logger.Log($"TERMINATING Round {round.Id} and Session {session.Id}");
+            
             return Unit.Value;
         }
 
         var word = DetermineWordForRound(guesses, options);
-        await UpdateRoundSelectedGuess(round, word, session);
+        await UpdateRoundSelectedGuess(uow, round, word, session);
 
-        await _gameUnitOfWork.SaveAsync();
+        await uow.SaveAsync();
         await _mediator.Publish(new RoundEnded(session.Id, round.Id), cancellationToken);
+        
+        _logger.Log($"Ending Round {round.Id}, selected word was {word}.");
 
         return Unit.Value;
     }
 
 
-    private async Task UpdateRoundSelectedGuess(Round round, KeyValuePair<string, List<Guess>> word, Session session)
+    private async Task UpdateRoundSelectedGuess(IGameUnitOfWork uow, Round round, KeyValuePair<string, List<Guess>> word, Session session)
     {
         round.Guess = word.Key;
         round.Result = new List<LetterState>();
@@ -153,10 +160,10 @@ public class EndActiveRoundCommandHandler : IRequestHandler<EndActiveRoundComman
         session.UsedLetters = usedLetters.Distinct().OrderBy(x => x).ToList(); 
         session.ActiveRoundId = null;
         session.ActiveRoundEnd = null;
-        await _gameUnitOfWork.Sessions.UpdateAsync(session);
+        await uow.Sessions.UpdateAsync(session);
         
         round.State = RoundState.INACTIVE;
-        await _gameUnitOfWork.Rounds.UpdateAsync(round);
+        await uow.Rounds.UpdateAsync(round);
     }
 
     public static KeyValuePair<string, List<Guess>> DetermineWordForRound(List<Guess> guesses, Options options)

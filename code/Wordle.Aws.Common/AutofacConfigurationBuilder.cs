@@ -38,12 +38,16 @@ public class AutofacConfigurationBuilder
     {
         b.RegisterInstance(new AmazonSQSClient()).As<IAmazonSQS>().SingleInstance();
     });
-
+    
 
     public AutofacConfigurationBuilder()
     {
+        EnvironmentVariables.EnvironmentFiles.ForEach(x =>
+        {
+            Console.WriteLine($"Found environment file {x}: {File.Exists(x)}");
+        });
+        
         builder = new ContainerBuilder();
-        builder.RegisterInstance(new ConsoleLogger()).As<Wordle.Logger.ILogger>().SingleInstance();
     }
     
     public AutofacConfigurationBuilder AddGamePersistence()
@@ -55,10 +59,9 @@ public class AutofacConfigurationBuilder
             .WithParameter(new TypedParameter(typeof(string),
                 EnvironmentVariables.GameDynamoTableName))
             .SingleInstance();
-            
-        builder.RegisterType<DynamoGameUnitOfWork>().As<IGameUnitOfWork>()
-            .InstancePerLifetimeScope();
-        builder.RegisterInstance(new DynamoMappers()).As<IDynamoMappers>();
+
+        builder.RegisterInstance(new DynamoMappers()).As<IDynamoMappers>().SingleInstance();
+        builder.RegisterType<DynamoGameUnitOfWorkFactory>().As<IGameUnitOfWorkFactory>().SingleInstance();
         
         return this;
     }
@@ -87,7 +90,7 @@ public class AutofacConfigurationBuilder
         return this;
     }
 
-    public AutofacConfigurationBuilder AddEventBridge()
+    public AutofacConfigurationBuilder AddEventPublishing()
     {
         AddEventBridgeClient(builder);
         
@@ -109,6 +112,7 @@ public class AutofacConfigurationBuilder
 
     public IContainer Build()
     {
+        builder.RegisterInstance(new ConsoleLogger()).As<Wordle.Logger.ILogger>().SingleInstance();
         builder.RegisterType<Clock.Clock>().As<IClock>().SingleInstance();
 
         // add all of the mediatr stuff, as it's pretty much always used

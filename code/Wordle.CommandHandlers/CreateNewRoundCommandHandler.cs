@@ -12,10 +12,10 @@ public class CreateNewRoundCommandHandler : IRequestHandler<CreateNewRoundComman
 {
     private readonly IClock _clock;
     private readonly IMediator _mediator;
-    private readonly IGameUnitOfWork _gameUnitOfWork;
+    private readonly IGameUnitOfWorkFactory _gameUnitOfWork;
 
 
-    public CreateNewRoundCommandHandler(IClock clock, IMediator mediator, IGameUnitOfWork gameUnitOfWork)
+    public CreateNewRoundCommandHandler(IClock clock, IMediator mediator, IGameUnitOfWorkFactory gameUnitOfWork)
     {
         _clock = clock;
         _mediator = mediator;
@@ -63,10 +63,11 @@ public class CreateNewRoundCommandHandler : IRequestHandler<CreateNewRoundComman
         session.ActiveRoundEnd = _clock.UtcNow().Add(TimeSpan.FromSeconds(options.InitialRoundLength));
         session.ActiveRoundId = round.Id;
 
-        await _gameUnitOfWork.Rounds.AddAsync(round);
-        await _gameUnitOfWork.Sessions.UpdateAsync(session);
+        var uow = _gameUnitOfWork.Create();
+        await uow.Rounds.AddAsync(round);
+        await uow.Sessions.UpdateAsync(session);
 
-        await _gameUnitOfWork.SaveAsync();
+        await uow.SaveAsync();
 
         await _mediator.Publish(new NewRoundStarted(session.Id, round.Id, session.ActiveRoundEnd.Value));
 

@@ -1,4 +1,6 @@
-﻿namespace Wordle.Events;
+﻿using System.Text.Json.Serialization;
+
+namespace Wordle.Events;
 
 public class NewSessionStarted : IEvent
 {

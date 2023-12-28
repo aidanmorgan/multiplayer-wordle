@@ -20,13 +20,13 @@ public struct Container
 public class CreateNewSessionCommandHandler : IRequestHandler<CreateNewSessionCommand, Guid>
 {
     private readonly IClock _clock;
-    private readonly IGameUnitOfWork _unitOfWork;
+    private readonly IGameUnitOfWorkFactory _unitOfWork;
     private readonly IMediator _mediator;
     private readonly IWordleDictionaryService _dictionaryService;
     private readonly ILogger _logger;
 
 
-    public CreateNewSessionCommandHandler(ILogger logger, IClock clock, IGameUnitOfWork unitOfWork, IMediator mediator, IWordleDictionaryService dictSvc)
+    public CreateNewSessionCommandHandler(ILogger logger, IClock clock, IGameUnitOfWorkFactory unitOfWork, IMediator mediator, IWordleDictionaryService dictSvc)
     {
         _logger = logger;
         _clock = clock;
@@ -43,6 +43,8 @@ public class CreateNewSessionCommandHandler : IRequestHandler<CreateNewSessionCo
         var tenantId = Tenant.CreateTenantId(request.TenantType, request.TenantName);
         var options = await _mediator.Send(new GetOptionsForTenantQuery(request.TenantType, request.TenantName), cancellationToken);
 
+        var uow = _unitOfWork.Create();
+        
         if (options == null)
         {
             // if there are no default options registered for this tenant then we need to create one
@@ -53,7 +55,7 @@ public class CreateNewSessionCommandHandler : IRequestHandler<CreateNewSessionCo
                 CreatedAt = _clock.UtcNow()
             };
             
-            await _unitOfWork.Options.AddAsync(tenantId, options);
+            await uow.Options.AddAsync(tenantId, options);
         }
         
         var word = request.Word;
@@ -71,9 +73,9 @@ public class CreateNewSessionCommandHandler : IRequestHandler<CreateNewSessionCo
             ActiveRoundId = roundId,
             ActiveRoundEnd = _clock.UtcNow().AddSeconds(options.InitialRoundLength),
         };
-        await _unitOfWork.Sessions.AddAsync(tenantId, session);
+        await uow.Sessions.AddAsync(tenantId, session);
 
-        await _unitOfWork.Rounds.AddAsync(new Round()
+        await uow.Rounds.AddAsync(new Round()
         {
             Id = roundId,
             SessionId = sessionId,
@@ -89,9 +91,8 @@ public class CreateNewSessionCommandHandler : IRequestHandler<CreateNewSessionCo
         sessionOptions.Id = Ulid.NewUlid().ToGuid();
         sessionOptions.CreatedAt = _clock.UtcNow();
 
-        await _unitOfWork.Options.AddAsync(session, sessionOptions);
-        
-        await _unitOfWork.SaveAsync();
+        await uow.Options.AddAsync(session, sessionOptions);
+        await uow.SaveAsync();
         
         _logger.Log($"Created new Session: {sessionId} with initial Round: {roundId}");
         

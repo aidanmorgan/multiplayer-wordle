@@ -66,7 +66,7 @@ public class EventBridgePublisher : IEventBridgeEventPublisher
 
     private async Task PublishEvent<T>(T notification, CancellationToken cancellationToken) where T : IEvent
     {
-        var payload = JsonSerializer.Serialize(notification);
+        var payload = JsonConvert.SerializeObject(notification);
         
         var entries = new List<PutEventsRequestEntry>() 
         {
@@ -91,7 +91,7 @@ public class EventBridgePublisher : IEventBridgeEventPublisher
         }
         else
         {
-            entries.ForEach(x => _logger.Log($"Published: {x}"));
+            entries.ForEach(x => _logger.Log($"Published: {x.Detail}"));
         }
     }
 
