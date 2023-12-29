@@ -66,3 +66,10 @@ Runs containerised applications that implement game logic, APIs etc.
 ## S3
 Stores PNG's of generated Wordle boards for display to users.
 
+
+# Local Development
+
+```shell
+docker-compose -p wordle-local up
+```
+

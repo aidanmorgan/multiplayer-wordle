@@ -12,6 +12,8 @@ namespace Wordle.Aws.EventBridgeImpl;
 // with the detail set appropriately for integration with other downstream lambdas
 public class EventBridgePublisher : IEventBridgeEventPublisher
 {
+    public const string EventDetailPrefix = "wordle.";
+    
     private static readonly Guid InstanceId = Ulid.NewUlid().ToGuid();
     private readonly IAmazonEventBridge _client;
     private readonly string _busName;
@@ -73,8 +75,8 @@ public class EventBridgePublisher : IEventBridgeEventPublisher
             new()
             {
                 Detail = payload,
-                Source = $"wordle.{InstanceId}",
-                DetailType =$"wordle.{notification.GetType().Name}",
+                Source = $"{EventDetailPrefix}{InstanceId}",
+                DetailType =$"{EventDetailPrefix}{notification.GetType().Name}",
                 EventBusName = _busName
             }
         };

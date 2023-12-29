@@ -103,7 +103,7 @@ public class AddGuessToRoundCommandHandler : IRequestHandler<AddGuessToRoundComm
         // extend the rounds by always submitting a guess within the extension window, so we need to cap this at a 
         // maximum number of extensions before we stop trying to solve the challenge above and just continue anyway.
         //
-        // Clearly I am intending to one day add Wordle.Aws.Common support to this, and you know they'll be dicks about it.
+        // Clearly I am intending to one day add Wordle.Apps.Common support to this, and you know they'll be dicks about it.
         if (session.ActiveRoundEnd.Value.Subtract(TimeSpan.FromSeconds(options.RoundExtensionWindow))
             .IsOnOrBefore(_clock.UtcNow()))
         {

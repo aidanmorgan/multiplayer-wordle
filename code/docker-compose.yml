@@ -3,7 +3,7 @@ services:
     image: aidanmorgan/wordle-publicapi
     build:
       context: .
-      dockerfile: Wordle.Aws.Fargate.PublicApi/Dockerfile
+      dockerfile: Wordle.Api.Public/Dockerfile
       args:
         - BUILD_CONFIGURATION=Development
     env_file: 
@@ -20,7 +20,7 @@ services:
     image: aidanmorgan/wordle-privateapi
     build:
       context: .
-      dockerfile: Wordle.Aws.Fargate.PrivateApi/Dockerfile
+      dockerfile: Wordle.Api.Private/Dockerfile
       args:
         - BUILD_CONFIGURATION=Development
     env_file:
@@ -37,7 +37,7 @@ services:
     image: aidanmorgan/wordle-eventhandler
     build:
       context: .
-      dockerfile: Wordle.Aws.Fargate.EventHandler/Dockerfile
+      dockerfile: Wordle.Apps.GameEventProcessor/Dockerfile
       args:
         - BUILD_CONFIGURATION=Development
     env_file:
@@ -45,4 +45,44 @@ services:
       - .sensitive.env
     volumes:
       - $HOME/.aws/credentials:/home/app/.aws/credentials:ro
-      
+    deploy:
+      mode: replicated
+      replicas: 3
+  
+  
+  timeout-handler:
+    image: aidanmorgan/wordle-timeouthandler
+    build:
+      context: .
+      dockerfile: Wordle.Apps.TimeoutProcessor/Dockerfile
+      args:
+        - BUILD_CONFIGURATION=Development
+    env_file:
+      - .development.env
+      - .sensitive.env
+    volumes:
+      - $HOME/.aws/credentials:/home/app/.aws/credentials:ro
+    deploy:
+      mode: replicated
+      replicas: 3
+
+
+  board-generator:
+    image: aidanmorgan/wordle-boardgenerator
+    
+    build:
+      context: .
+      dockerfile: Wordle.Apps.BoardGenerator/Dockerfile
+      args:
+        - BUILD_CONFIGURATION=Development
+    env_file:
+      - .development.env
+      - .sensitive.env
+    volumes:
+      - $HOME/.aws/credentials:/home/app/.aws/credentials:ro
+      - /usr/share/fonts:/usr/share/fonts
+    deploy:
+      mode: replicated
+      replicas: 3
+
+

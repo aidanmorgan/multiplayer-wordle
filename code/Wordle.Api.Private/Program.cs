@@ -1,6 +1,6 @@
 using Autofac;
 using MediatR;
-using Wordle.Aws.Common;
+using Wordle.Apps.Common;
 using Wordle.Clock;
 
 var builder = WebApplication.CreateBuilder(args);

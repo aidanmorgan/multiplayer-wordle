@@ -7,7 +7,8 @@ using MediatR;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Queries;
-using Wordle.Aws.Common;
+using Wordle.Apps.Common;
+using Wordle.Aws.EventBridgeImpl;
 using Wordle.Clock;
 using Wordle.Commands;
 using Wordle.Events;
@@ -15,9 +16,8 @@ using Wordle.Logger;
 using Wordle.Model;
 using Wordle.Persistence;
 using IContainer = Autofac.IContainer;
-using JsonSerializer = System.Text.Json.JsonSerializer;
 
-namespace Aws.Fargate.EventHandler;
+namespace Wordle.Apps.GameEventProcessor;
 
 public class Program
 {
@@ -26,6 +26,7 @@ public class Program
     private const int MAX_EVENT_MESSAGES = 5;
     private const int MAX_TIMEOUT_MESSAGES = 5;
     private const int READ_WAIT_TIME_SECONDS = 10;
+    private const int VISIBILITY_TIMEOUT_SECONDS = 5;
     
     private readonly IMediator _mediator;
     private readonly ILogger _logger;
@@ -61,116 +62,91 @@ public class Program
     {
         var token = new CancellationTokenSource();
         
-        var eventProcessingQueue = Task.Run(async () =>
-        {
-            while (!token.IsCancellationRequested)
-            {
-                try
-                {
-                    var messages = await _sqs.ReceiveMessageAsync(new ReceiveMessageRequest
-                    {
-                        QueueUrl = EnvironmentVariables.EventQueueUrl,
-                        MaxNumberOfMessages = MAX_EVENT_MESSAGES,
-                        WaitTimeSeconds = READ_WAIT_TIME_SECONDS
-                    }, token.Token);
-
-                    foreach (var message in messages?.Messages ?? [])
-                    {
-                        var decoded = JsonConvert.DeserializeObject<JObject>(message.Body);
-                        if (decoded != null)
-                        {
-                            // this janky code is just here to get the event type out of the message
-                            // so we can determine how to cast the event as appropriate when we want to
-                            // process.
-                            var eventType = decoded.GetValue("detail-type").Value<string>();
-
-                            if (!string.IsNullOrEmpty(eventType))
-                            {
-                                if (eventType.EndsWith(nameof(NewSessionStarted)))
-                                {
-                                    await Handle(decoded["detail"].ToObject<NewSessionStarted>(), token.Token);
-                                }
-                                else if (eventType.EndsWith(nameof(RoundEnded)))
-                                {
-                                    await Handle(decoded["detail"].ToObject<RoundEnded>(), token.Token);
-                                }
-                                else if (eventType.EndsWith(nameof(NewRoundStarted)))
-                                {
-                                    await SubmitTimeout(decoded["detail"].ToObject<NewRoundStarted>(), token.Token);
-                                }
-                                else if (eventType.EndsWith(nameof(RoundExtended)))
-                                {
-                                    await SubmitTimeout(decoded["detail"].ToObject<RoundExtended>(), token.Token);
-                                }
-                                else
-                                {
-                                    _logger.Log($"Ignoring event {eventType}");
-                                }
-                            }
-                        }
-                        
-                        // delete the message so it doesnt get reprocessed
-                        await _sqs.DeleteMessageAsync(new DeleteMessageRequest()
-                        {
-                            QueueUrl = EnvironmentVariables.EventQueueUrl,
-                            ReceiptHandle = message.ReceiptHandle
-                        });
-                    }
-                }
-                catch (Exception x)
-                {
-                    _logger.Log("exception", $"Exception thrown processing events.");
-                    _logger.Log(x.Message);
-                }
-            }
-        }, token.Token);
-
-        var gameRenewalQueue = Task.Run(async () =>
-        {
-            while (!token.IsCancellationRequested)
-            {
-                try
-                {
-                    var messages = await _sqs.ReceiveMessageAsync(new ReceiveMessageRequest
-                    {
-                        QueueUrl = EnvironmentVariables.TimeoutQueueUrl,
-                        MaxNumberOfMessages = MAX_TIMEOUT_MESSAGES,
-                        WaitTimeSeconds = READ_WAIT_TIME_SECONDS
-                    }, token.Token);
-
-                    foreach (var message in messages?.Messages ?? [])
-                    {
-                        var payload = JsonConvert.DeserializeObject<TimeoutPayload>(message.Body);
-
-                        if (payload != null)
-                        {
-                            await HandleTimeout(payload, token);
-                        }
-                        
-                        await _sqs.DeleteMessageAsync(new DeleteMessageRequest()
-                        {
-                            QueueUrl = EnvironmentVariables.TimeoutQueueUrl,
-                            ReceiptHandle = message.ReceiptHandle
-                        });
-                    }
-                }
-                catch (Exception x)
-                {
-                    _logger.Log("exception", $"Exception thrown processing timeouts.");
-                    _logger.Log(x.Message);
-                }
-            }
-        }, token.Token);
+        var eventProcessingQueue = Task.Run(async () => { await EventProcessingLoopAsync(token); }, token.Token);
 
         try
         {
-            Task.WaitAll(new Task[] { eventProcessingQueue, gameRenewalQueue }, token.Token);
+            Task.WaitAll(new Task[] { eventProcessingQueue }, token.Token);
         }
         catch (AggregateException x)
         {
             foreach(var innerException in x.Flatten().InnerExceptions)
             {
                 _logger.Log(innerException.Message);
+            }
+        }
+    }
+
+
+    private async Task EventProcessingLoopAsync(CancellationTokenSource token)
+    {
+        while (!token.IsCancellationRequested)
+        {
+            try
+            {
+                var messages = await _sqs.ReceiveMessageAsync(new ReceiveMessageRequest
+                {
+                    QueueUrl = EnvironmentVariables.EventQueueUrl,
+                    MaxNumberOfMessages = MAX_EVENT_MESSAGES,
+                    WaitTimeSeconds = READ_WAIT_TIME_SECONDS,
+                    VisibilityTimeout = VISIBILITY_TIMEOUT_SECONDS
+                }, token.Token);
+
+                foreach (var message in messages?.Messages ?? [])
+                {
+                    var decoded = JsonConvert.DeserializeObject<JObject>(message.Body);
+                    if (decoded != null)
+                    {
+                        // this janky code is just here to get the event type out of the message
+                        // so we can determine how to cast the event as appropriate when we want to
+                        // process.
+                        var eventType = decoded.GetValue("detail-type").Value<string>();
+
+                        if (!string.IsNullOrEmpty(eventType) && eventType.StartsWith(EventBridgePublisher.EventDetailPrefix))
+                        {
+                            var eventName = eventType[EventBridgePublisher.EventDetailPrefix.Length..];
+
+                            switch (eventName)
+                            {
+                                case nameof(NewSessionStarted):
+                                {
+                                    await Handle(decoded["detail"].ToObject<NewSessionStarted>(), token.Token);
+                                    break;
+                                }
+
+                                case nameof(RoundEnded):
+                                {
+                                    await Handle(decoded["detail"].ToObject<RoundEnded>(), token.Token);
+                                    break;
+                                }
+
+                                case nameof(NewRoundStarted):
+                                {
+                                    await SubmitTimeout(decoded["detail"].ToObject<NewRoundStarted>(), token.Token);
+                                    break;
+                                }
+
+                                case nameof(RoundExtended):
+                                {
+                                    await SubmitTimeout(decoded["detail"].ToObject<RoundExtended>(), token.Token);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                        
+                    // delete the message so it doesnt get reprocessed
+                    await _sqs.DeleteMessageAsync(new DeleteMessageRequest()
+                    {
+                        QueueUrl = EnvironmentVariables.EventQueueUrl,
+                        ReceiptHandle = message.ReceiptHandle
+                    });
+                }
+            }
+            catch (Exception x)
+            {
+                _logger.Log("exception", $"Exception thrown processing events.");
+                _logger.Log(x.Message);
             }
         }
     }
@@ -253,7 +229,7 @@ public class Program
             return; 
         }
         
-        _logger.Log($"Received {nameof(NewRoundStarted)} event for Round {detail.RoundId}. Sending to SQS.");
+        _logger.Log($"Received {nameof(NewRoundStarted)} event for Round {detail.RoundId}. Starting timer.");
 
         try
         {
@@ -279,7 +255,7 @@ public class Program
             return; 
         }
 
-        _logger.Log($"Received {nameof(RoundExtended)} event for Round {notification.RoundId}. Sending to SQS.");
+        _logger.Log($"Received {nameof(RoundExtended)} event for Round {notification.RoundId}. Starting timer.");
 
         try
         {
@@ -293,58 +269,6 @@ public class Program
         catch (Exception)
         {
             throw;
-        }
-    }
-    
-    private async Task HandleTimeout(TimeoutPayload p, CancellationTokenSource cancellationToken)
-    {
-        if (p.SessionId == Guid.Empty || p.RoundId == Guid.Empty)
-        {
-            _logger.Log($"Ignoring invalid {nameof(TimeoutPayload)} message.");
-            return; 
-        }
-        
-        var qr = await _mediator.Send(new GetSessionByIdQuery(p.SessionId));
-
-        if (!qr.HasValue)
-        {
-            _logger.Log($"Cannot end active round for session {p.SessionId}, no Session found.");
-            return;
-        }
-
-        var session = qr.Value.Session;
-
-        if (session.State != SessionState.ACTIVE)
-        {
-            _logger.Log($"Cannot end active round for Session {session.Id}, it is not ACTIVE.");
-            return;
-        }
-
-        if (!session.ActiveRoundId.HasValue)
-        {
-            _logger.Log($"Cannot end active round for Session {session.Id}, there is no active round.");
-            return;
-        }
-
-        if (!session.ActiveRoundEnd.HasValue)
-        {
-            _logger.Log($"Cannot end active round for Session {session.Id}. there is no active round end set.");
-            return;
-        }
-
-        if (!p.RoundId.Equals(session.ActiveRoundId.Value) )
-        {
-            _logger.Log($"Cannot end Round {p.RoundId} for Session {session.Id}. it is not the active round.");
-            return;
-        }
-
-        try
-        {
-            await _mediator.Send(new EndActiveRoundCommand(session.Id));
-        }
-        catch (CommandException)
-        {
-            // ignore
         }
     }
 }

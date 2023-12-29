@@ -1,6 +1,6 @@
 using Wordle.Events;
 
-namespace Aws.Fargate.EventHandler;
+namespace Wordle.Apps.Common;
 
 public class TimeoutPayload
 {

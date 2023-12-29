@@ -1,6 +1,7 @@
 using Amazon.DynamoDBv2;
 using Amazon.EventBridge;
 using Amazon.S3;
+using Amazon.SimpleNotificationService;
 using Amazon.SQS;
 using Autofac;
 using MediatR.Extensions.Autofac.DependencyInjection;
@@ -12,8 +13,9 @@ using Wordle.Dictionary;
 using Wordle.Logger;
 using Wordle.Persistence;
 using Wordle.Persistence.Dynamo;
+using Wordle.Render;
 
-namespace Wordle.Aws.Common;
+namespace Wordle.Apps.Common;
 
 public class AutofacConfigurationBuilder
 {
@@ -37,6 +39,11 @@ public class AutofacConfigurationBuilder
     private readonly Action<ContainerBuilder> AddSqsClient = callOnlyOnce((b) =>
     {
         b.RegisterInstance(new AmazonSQSClient()).As<IAmazonSQS>().SingleInstance();
+    });
+
+    private readonly Action<ContainerBuilder> AddSnsClient = callOnlyOnce((b) =>
+    {
+        b.RegisterInstance(new AmazonSimpleNotificationServiceClient()).As<IAmazonSimpleNotificationService>();
     });
     
 
@@ -107,8 +114,16 @@ public class AutofacConfigurationBuilder
     public AutofacConfigurationBuilder AddEventHandling()
     {
         AddSqsClient(builder);
+        AddSnsClient(builder);
         return this;
     }
+    
+    public AutofacConfigurationBuilder AddRenderer()
+    {
+        builder.RegisterInstance(new PngRenderer()).As<IRenderer>();
+        return this;
+    }
+
 
     public IContainer Build()
     {
@@ -146,7 +161,7 @@ public class AutofacConfigurationBuilder
 
     class ContextCallOnlyOnce{
         public bool AlreadyCalled;
-    } 
+    }
 
 }
 

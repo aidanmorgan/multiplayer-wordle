@@ -6,17 +6,15 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <InvariantGlobalization>true</InvariantGlobalization>
         <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
-        <PackageId>Wordle.Aws.Fargate.PublicApi</PackageId>
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Autofac.Extensions.DependencyInjection" Version="8.0.0" />
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.0"/>
         <PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0"/>
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Wordle.Aws.Common\Wordle.Aws.Common.csproj" />
+      <ProjectReference Include="..\Wordle.Apps.Common\Wordle.Apps.Common.csproj" />
     </ItemGroup>
 
     <ItemGroup>

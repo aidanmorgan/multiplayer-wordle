@@ -1,15 +1,14 @@
-using System.ComponentModel.Design;
 using System.Net;
 using Autofac;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Queries;
-using Wordle.Aws.Common;
+using Wordle.Apps.Common;
 using Wordle.Clock;
 using Wordle.Commands;
 using Wordle.Dictionary;
 using Wordle.Model;
-
+using Guess = Wordle.Api.Public.Guess;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -90,8 +89,11 @@ app.MapGet("/health", () =>
 app.Run();
 
 
-class Guess
+namespace Wordle.Api.Public
 {
-    public string UserName { get; set; }
-    public string Word { get; set; }
+    class Guess
+    {
+        public string UserName { get; set; }
+        public string Word { get; set; }
+    }
 }
