@@ -5,11 +5,11 @@ using Newtonsoft.Json;
 using Polly;
 using Polly.Retry;
 using Wordle.Aws.Common;
-using Wordle.Aws.Kafka.Common;
+using Wordle.Kafka.Common;
 using Wordle.Events;
 using Wordle.Logger;
 
-namespace Wordle.Aws.Kafka.Consumer;
+namespace Wordle.Kafka.Consumer;
 
 public class KafkaEventConsumerService : IEventConsumerService
 {
@@ -91,7 +91,7 @@ public class KafkaEventConsumerService : IEventConsumerService
                     return builder;
                 });
                 
-                var message = consumer.Consume(token);
+                var message = consumer!.Consume(token);
                 var typeName = GetEventTypeFromHeader(message);
                 if (string.IsNullOrEmpty(typeName))
                 {
@@ -142,11 +142,11 @@ public static class ContextExtensions
         }    
     }
 
-    public static IConsumer<Ignore, string>? GetConsumer(this Context context, Func<IConsumer<Ignore, string>> factory)
+    public static IConsumer<Ignore, string> GetConsumer(this Context context, Func<IConsumer<Ignore, string>> factory)
     {
         if (context.TryGetValue(Key, out var value))
         {
-            return value as IConsumer<Ignore, string>;
+            return (value as IConsumer<Ignore, string>)!;
         }
 
         var result = factory();

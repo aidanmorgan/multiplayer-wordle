@@ -2,12 +2,12 @@
 using Confluent.Kafka;
 using Newtonsoft.Json;
 using Wordle.Aws.Common;
-using Wordle.Aws.Kafka.Common;
+using Wordle.Kafka.Common;
 using Wordle.Clock;
 using Wordle.Events;
 using Wordle.Logger;
 
-namespace Wordle.Aws.Kafka.Publisher;
+namespace Wordle.Kafka.Publisher;
 
 public class KafkaEventPublisher : IEventPublisher, IDisposable
 {

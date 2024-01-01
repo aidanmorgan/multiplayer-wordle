@@ -15,13 +15,15 @@ public class EndActiveRoundCommandHandler : IRequestHandler<EndActiveRoundComman
     private readonly IClock _clock;
     private readonly IGameUnitOfWorkFactory _uowFactory;
     private readonly IMediator _mediator;
+    private readonly IGuessDecimator _guessDecimator;
     private readonly ILogger _logger;
 
-    public EndActiveRoundCommandHandler(IClock clock, IGameUnitOfWorkFactory uowFactory, ILogger logger, IMediator mediator)
+    public EndActiveRoundCommandHandler(IClock clock, IGameUnitOfWorkFactory uowFactory, IGuessDecimator decimator, ILogger logger, IMediator mediator)
     {
         _clock = clock;
         _logger = logger;
         _uowFactory = uowFactory;
+        _guessDecimator = decimator;
         _mediator = mediator;
     }
 
@@ -118,7 +120,7 @@ public class EndActiveRoundCommandHandler : IRequestHandler<EndActiveRoundComman
             return Unit.Value;
         }
 
-        var word = DetermineWordForRound(guesses, options);
+        var word = DetermineWordForRound(_guessDecimator, guesses, options);
         await UpdateRoundSelectedGuess(uow, round, word, session);
 
         await uow.SaveAsync();
@@ -166,13 +168,13 @@ public class EndActiveRoundCommandHandler : IRequestHandler<EndActiveRoundComman
         await uow.Rounds.UpdateAsync(round);
     }
 
-    public static KeyValuePair<string, List<Guess>> DetermineWordForRound(List<Guess> guesses, Options options)
+    public static KeyValuePair<string, List<Guess>> DetermineWordForRound(IGuessDecimator decimator, List<Guess> guesses, Options options)
     {
         // this is gonna get convoluted, but lets try and break this process down.
         // first of all, users have a maximum number of votes, so lets firstly trim them down to the maximum
         // by looking at the LAST entries they submitted, that means if they vote 10 times, and the limit per
         // round is two, we take the last 2 votes they submitted.
-        var truncatedUserVotes = DecimateGuesses(guesses, options);
+        var truncatedUserVotes =  decimator.DecimateGuesses(guesses, options);
 
         // now we have a reduced subset of values, group the guesses by the word that was guessed
         // then pick the words that have the highest number of guesses, throwing everything else away
@@ -224,25 +226,7 @@ public class EndActiveRoundCommandHandler : IRequestHandler<EndActiveRoundComman
             }
         }
     }
-
-    public static List<Guess> DecimateGuesses(List<Guess> guesses, Options options)
-    {
-        var truncatedUserVotes = guesses
-            .GroupBy(x => x.User)
-            .Select(x =>
-                new KeyValuePair<string, List<Guess>>(x.Key, x
-                    .OrderByDescending(y => y.Timestamp)
-                    .DistinctBy(y => y.Word)
-                    .Take(options.RoundVotesPerUser)
-                    .ToList()
-                ))
-            // throw away the KVP now, we actually just want a raw list of Guesses now we know
-            // we've filtered them to the user's most recent X.
-            .SelectMany(x => x.Value)
-            .ToList();
-        return truncatedUserVotes;
-    }
-
+    
     private class GuessContainer
     {
         public string Word { get; set; }

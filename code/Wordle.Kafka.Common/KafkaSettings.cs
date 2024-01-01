@@ -1,4 +1,4 @@
-namespace Wordle.Aws.Kafka.Common;
+namespace Wordle.Kafka.Common;
 
 public class KafkaSettings
 {

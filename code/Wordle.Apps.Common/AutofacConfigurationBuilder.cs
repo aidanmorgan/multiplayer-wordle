@@ -11,13 +11,13 @@ using MediatR.NotificationPublishers;
 using Wordle.Aws.Common;
 using Wordle.Aws.DictionaryImpl;
 using Wordle.Aws.EventBridge;
-using Wordle.Aws.Kafka;
-using Wordle.Aws.Kafka.Common;
-using Wordle.Aws.Kafka.Consumer;
-using Wordle.Aws.Kafka.Publisher;
+using Wordle.Kafka.Consumer;
+using Wordle.Kafka.Publisher;
 using Wordle.Clock;
 using Wordle.Dictionary;
+using Wordle.Kafka.Common;
 using Wordle.Logger;
+using Wordle.Model;
 using Wordle.Persistence;
 using Wordle.Persistence.Dynamo;
 using Wordle.Render;
@@ -64,6 +64,7 @@ public class AutofacConfigurationBuilder
     {
         b.RegisterInstance(new ConsoleLogger()).As<Wordle.Logger.ILogger>().SingleInstance();
         b.RegisterType<Clock.Clock>().As<IClock>().SingleInstance();
+        b.RegisterType<GuessDecimator>().As<IGuessDecimator>().SingleInstance();
 
         AddSqsClient(b);
         AddSnsClient(b);
@@ -238,6 +239,12 @@ public class AutofacConfigurationBuilder
 
     class ContextCallOnlyOnce{
         public bool AlreadyCalled;
+    }
+
+    public AutofacConfigurationBuilder Callback(Action<ContainerBuilder> action)
+    {
+        action(_builder);
+        return this;
     }
 
     public AutofacConfigurationBuilder RegisterSelf(Type program, bool inclueMediatr = true)

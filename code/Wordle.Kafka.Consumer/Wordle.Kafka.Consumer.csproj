@@ -8,13 +8,16 @@
 
     <ItemGroup>
       <PackageReference Include="Confluent.Kafka" Version="2.3.0" />
+      <PackageReference Include="MediatR" Version="12.2.0" />
       <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+      <PackageReference Include="Polly" Version="8.2.0" />
     </ItemGroup>
 
     <ItemGroup>
       <ProjectReference Include="..\Wordle.Aws.Common\Wordle.Aws.Common.csproj" />
-      <ProjectReference Include="..\Wordle.Aws.Kafka.Common\Wordle.Aws.Kafka.Common.csproj" />
+      <ProjectReference Include="..\Wordle.Kafka.Common\Wordle.Kafka.Common.csproj" />
       <ProjectReference Include="..\Wordle.Clock\Wordle.Clock.csproj" />
+      <ProjectReference Include="..\Wordle.Events\Wordle.Events.csproj" />
       <ProjectReference Include="..\Wordle.Logger\Wordle.Logger.csproj" />
     </ItemGroup>
 
