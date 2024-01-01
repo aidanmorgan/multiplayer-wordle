@@ -21,6 +21,19 @@ public static class DynamoDBEntryExtensions
         return MakeDynamoAsync(id.ToSessionId());
     }
     
+    public static Task<DynamoDBEntry> AsNullableSessionIdAsync(this Guid? id)
+    {
+        if (id.HasValue)
+        {
+            return MakeDynamoAsync(((Guid)id).ToSessionId());
+        }
+        else
+        {
+            return Task.FromResult<DynamoDBEntry>(new DynamoDBNull());
+        }
+    }
+    
+    
     public static Task<DynamoDBEntry> AsTenantIdAsync(this Guid id)
     {
         return MakeDynamoAsync(id.ToTenantId());

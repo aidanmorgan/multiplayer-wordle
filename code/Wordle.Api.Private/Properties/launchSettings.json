@@ -1,5 +1,13 @@
 ﻿{
   "$schema": "http://json.schemastore.org/launchsettings.json",
+  "iisSettings": {
+    "windowsAuthentication": false,
+    "anonymousAuthentication": true,
+    "iisExpress": {
+      "applicationUrl": "http://localhost:23734",
+      "sslPort": 44362
+    }
+  },
   "profiles": {
     "http": {
       "commandName": "Project",
@@ -8,8 +16,7 @@
       "launchUrl": "swagger",
       "applicationUrl": "http://localhost:5200",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development",
-        "AWS_PROFILE": "wordle-profile"
+        "WORDLE_ENV_SEARCH_PATHS": "/Users/aidan/dev/personal/multiplayer-wordle/code"
       }
     },
     "https": {
@@ -17,10 +24,17 @@
       "dotnetRunMessages": true,
       "launchBrowser": true,
       "launchUrl": "swagger",
-      "applicationUrl": "https://localhost:7200;http://localhost:5200",
+      "applicationUrl": "https://localhost:7183;http://localhost:5200",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development",
-        "AWS_PROFILE": "wordle-profile"
+        "WORDLE_ENV_SEARCH_PATHS": "/Users/aidan/dev/personal/multiplayer-wordle/code"
+      }
+    },
+    "IIS Express": {
+      "commandName": "IISExpress",
+      "launchBrowser": true,
+      "launchUrl": "swagger",
+      "environmentVariables": {
+        "WORDLE_ENV_SEARCH_PATHS": "/Users/aidan/dev/personal/multiplayer-wordle/code"
       }
     }
   }

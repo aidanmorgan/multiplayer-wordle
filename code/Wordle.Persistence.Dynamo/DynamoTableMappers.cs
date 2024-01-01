@@ -78,7 +78,7 @@ public class DynamoMappers : IDynamoMappers
             {
                 if (options.IsSession())
                 {
-                    return options.SessionId!.MakeDynamoAsync();
+                    return options.SessionId!.AsNullableSessionIdAsync();
                 }
                 else if (options.IsTenant())
                 {
@@ -95,7 +95,7 @@ public class DynamoMappers : IDynamoMappers
 
                 if (str.IsSessionId())
                 {
-                    options.SessionId = await value.AsStringAsync();                    
+                    options.SessionId = await value.AsNullableGuidAsync();                    
                 }
                 else if (str.IsTenantId())
                 {

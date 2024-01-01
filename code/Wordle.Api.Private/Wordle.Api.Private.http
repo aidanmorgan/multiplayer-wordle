@@ -1,0 +1,6 @@
+@Wordle.Api.Private_HostAddress = http://localhost:5200
+
+GET {{Wordle.Api.Private_HostAddress}}
+Accept: application/json
+
+###

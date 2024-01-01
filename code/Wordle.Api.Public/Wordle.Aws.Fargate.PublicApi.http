@@ -1,6 +1,0 @@
-@Wordle.Aws.Fargate.PublicApi_HostAddress = http://localhost:5149
-
-GET {{Wordle.Aws.Fargate.PubliclApi_HostAddress}}
-Accept: application/json
-
-###

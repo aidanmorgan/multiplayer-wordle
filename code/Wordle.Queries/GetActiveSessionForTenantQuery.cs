@@ -1,6 +1,6 @@
 ﻿using MediatR;
 
-namespace Queries;
+namespace Wordle.Queries;
 
 public class GetActiveSessionForTenantQuery : IRequest<Guid?>
 {

@@ -12,7 +12,8 @@ COPY ["Wordle.Apps.Common/Wordle.Apps.Common.csproj", "Wordle.Apps.Common/"]
 COPY ["Wordle.Aws.DictionaryImpl/Wordle.Aws.DictionaryImpl.csproj", "Wordle.Aws.DictionaryImpl/"]
 COPY ["Wordle.Dictionary/Wordle.Dictionary.csproj", "Wordle.Dictionary/"]
 COPY ["Wordle.Model/Wordle.Model.csproj", "Wordle.Model/"]
-COPY ["Wordle.Aws.EventBridgeImpl/Wordle.Aws.EventBridgeImpl.csproj", "Wordle.Aws.EventBridgeImpl/"]
+COPY ["Wordle.Aws.EventBridge/Wordle.Aws.EventBridge.csproj", "Wordle.Aws.EventBridge/"]
+COPY ["Wordle.Aws.Common/Wordle.Aws.Common.csproj", "Wordle.Aws.Common/"]
 COPY ["Wordle.Events/Wordle.Events.csproj", "Wordle.Events/"]
 COPY ["Wordle.Logger/Wordle.Logger.csproj", "Wordle.Logger/"]
 COPY ["Wordle.Clock/Wordle.Clock.csproj", "Wordle.Clock/"]
@@ -23,6 +24,10 @@ COPY ["Wordle.Persistence.Dynamo/Wordle.Persistence.Dynamo.csproj", "Wordle.Pers
 COPY ["Wordle.Persistence/Wordle.Persistence.csproj", "Wordle.Persistence/"]
 COPY ["Wordle.Queries/Wordle.Queries.csproj", "Wordle.Queries/"]
 COPY ["Wordle.QueryHandlers.Dynamo/Wordle.QueryHandlers.Dynamo.csproj", "Wordle.QueryHandlers.Dynamo/"]
+COPY ["Wordle.Render/Wordle.Render.csproj", "Wordle.Render/"]
+COPY ["Wordle.Kafka.Consumer/Wordle.Kafka.Consumer.csproj", "Wordle.Kafka.Consumer/"]
+COPY ["Wordle.Kafka.Common/Wordle.Kafka.Common.csproj", "Wordle.Kafka.Common/"]
+COPY ["Wordle.Kafka.Publisher/Wordle.Kafka.Publisher.csproj", "Wordle.Kafka.Publisher/"]
 RUN dotnet restore "Wordle.Api.Public/Wordle.Api.Public.csproj"
 COPY . .
 WORKDIR "/src/Wordle.Api.Public"

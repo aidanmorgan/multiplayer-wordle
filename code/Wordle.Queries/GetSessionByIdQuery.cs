@@ -1,7 +1,7 @@
 using MediatR;
 using Wordle.Model;
 
-namespace Queries;
+namespace Wordle.Queries;
 
 public class SessionQueryResult
 {

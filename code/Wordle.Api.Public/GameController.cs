@@ -1,11 +1,12 @@
 using System.Net;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
-using Queries;
+using Microsoft.AspNetCore.RateLimiting;
 using Wordle.Clock;
 using Wordle.Commands;
 using Wordle.Dictionary;
 using Wordle.Model;
+using Wordle.Queries;
 
 namespace Wordle.Api.Public;
 
@@ -22,6 +23,7 @@ public class GameController : ControllerBase
         _dictionary = dictionary;
     }
     
+    [EnableRateLimiting("newgame-limit")]
     [HttpPost("/v1/tenants/{tenantId}")]
     [ProducesResponseType((int)HttpStatusCode.BadRequest)]
     [ProducesResponseType((int)HttpStatusCode.Created)]
@@ -45,6 +47,7 @@ public class GameController : ControllerBase
         return new CreatedResult();
     }
 
+    [EnableRateLimiting("guess-limit")]
     [HttpPost("/v1/tenants/{tenantId}/guesses")]
     [ProducesResponseType((int)HttpStatusCode.BadRequest)]
     [ProducesResponseType((int)HttpStatusCode.NotFound)]

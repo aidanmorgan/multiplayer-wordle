@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Autofac" Version="7.1.0" />
+      <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+      <PackageReference Include="StackExchange.Redis" Version="2.7.10" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Wordle.Aws.Common\Wordle.Aws.Common.csproj" />
+      <ProjectReference Include="..\Wordle.Clock\Wordle.Clock.csproj" />
+      <ProjectReference Include="..\Wordle.Logger\Wordle.Logger.csproj" />
+      <ProjectReference Include="..\Wordle.Redis.Common\Wordle.Redis.Common.csproj" />
+    </ItemGroup>
+
+</Project>

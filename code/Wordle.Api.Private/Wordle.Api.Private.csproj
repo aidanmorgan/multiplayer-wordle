@@ -14,13 +14,13 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Wordle.Apps.Common\Wordle.Apps.Common.csproj" />
-    </ItemGroup>
-
-    <ItemGroup>
       <Content Include="..\.dockerignore">
         <Link>.dockerignore</Link>
       </Content>
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Wordle.Apps.Common\Wordle.Apps.Common.csproj" />
     </ItemGroup>
 
 </Project>

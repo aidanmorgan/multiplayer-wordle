@@ -66,6 +66,8 @@ public class KafkaEventConsumerService : IEventConsumerService
     
     public async Task RunAsync(CancellationToken token)
     {
+        _logger.Log($"Receiving events from Topic: {_settings.Topic} for bootstrap servers: {_settings.BootstrapServers}");
+
         var ctx = new Context();
         
         _logger.Log("Listening for new game events....");

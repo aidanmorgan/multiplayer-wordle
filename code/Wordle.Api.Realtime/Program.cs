@@ -3,7 +3,6 @@ using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Wordle.Apps.Common;
 using Wordle.Aws.Common;
-using EnvironmentVariablesExtensions = Wordle.Apps.Common.EnvironmentVariablesExtensions;
 
 namespace Wordle.Api.Realtime;
 
@@ -11,9 +10,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        // set these in case they are not set in the environment configuration
-        EnvironmentVariablesExtensions.SetDefault("INSTANCE_TYPE", "Real-Time-Api") ;
-        EnvironmentVariablesExtensions.SetDefault("INSTANCE_ID", "d66c2093-964e-4f94-9a24-49e7b6cabfd2") ;
+        EnvironmentVariables.SetDefaultInstanceConfig(typeof(Program).Assembly.FullName, "d66c2093-964e-4f94-9a24-49e7b6cabfd2");
 
         var builder = WebApplication.CreateBuilder(args);
         builder.Host.UseServiceProviderFactory(new AutofacServiceProviderFactory(x =>
@@ -34,9 +31,6 @@ public class Program
 
         builder.Services.AddControllers();
         
-        // Add services to the container.
-        builder.Services.AddAuthorization();
-
         // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
@@ -48,14 +42,17 @@ public class Program
         {
             app.UseSwagger();
             app.UseSwaggerUI();
+        }
+        else
+        {
             app.UseHttpsRedirection();
         }
 
-        app.UseAuthorization();
         app.UseWebSockets(new WebSocketOptions
         {
             KeepAliveInterval = TimeSpan.FromMinutes(2)
         });
+        
         app.MapControllers();
 
         app.Run();

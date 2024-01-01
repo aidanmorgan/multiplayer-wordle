@@ -20,6 +20,9 @@ using Wordle.Logger;
 using Wordle.Model;
 using Wordle.Persistence;
 using Wordle.Persistence.Dynamo;
+using Wordle.Redis.Common;
+using Wordle.Redis.Consumer;
+using Wordle.Redis.Publisher;
 using Wordle.Render;
 
 namespace Wordle.Apps.Common;
@@ -84,11 +87,6 @@ public class AutofacConfigurationBuilder
 
     public AutofacConfigurationBuilder(ContainerBuilder? i = null)
     {
-        EnvironmentVariables.EnvironmentFiles.ForEach(x =>
-        {
-            Console.WriteLine($"Found environment file {x}: {File.Exists(x)}");
-        });
-        
         _builder = i ?? new ContainerBuilder();
     }
 
@@ -144,7 +142,7 @@ public class AutofacConfigurationBuilder
             BootstrapServers = EnvironmentVariables.KafkaBootstrapServers,
             Topic = EnvironmentVariables.KafkaEventTopic,
             InstanceType = instanceType,
-            InstanceId = instanceId
+            InstanceId = instanceId,
         }).As<KafkaSettings>();
         
         _builder.RegisterType<KafkaEventPublisher>()
@@ -205,9 +203,56 @@ public class AutofacConfigurationBuilder
             .SingleInstance();
         
         MediatrAssemblies.Add(typeof(SqsEventConsumerService).Assembly);
-
         
         return this;
+    }
+
+    public AutofacConfigurationBuilder AddRedisEventPublisher(string instanceType, string instanceId)
+    {
+        _builder.RegisterInstance(new RedisSettings()
+        {
+            RedisHost = EnvironmentVariables.RedisServer,
+            RedisTopic = EnvironmentVariables.RedisTopic,
+            InstanceType = instanceType,
+            InstanceId = instanceId
+        }).As<RedisSettings>();
+
+        // singleton instnce that performs the actual redis logic
+        _builder
+            .RegisterType<DefaultRedisPublisher>()
+            .As<IRedisPublisher>()
+            .SingleInstance()
+            .OnActivated(x => x.Instance.Start());
+        
+        // wrapper that implements INotificationHandler that delegates to the IRedisPublisher
+        _builder
+            .RegisterType<RedisEventPublisher>()
+            .AsImplementedInterfaces();
+        
+        MediatrAssemblies.Add(typeof(RedisEventPublisher).Assembly);
+
+        return this;
+    }
+
+    public AutofacConfigurationBuilder AddRedisEventConsumer(string instanceType, string instanceId)
+    {
+        _builder.RegisterInstance(new RedisSettings()
+        {
+            RedisHost = EnvironmentVariables.RedisServer,
+            RedisTopic = EnvironmentVariables.RedisTopic,
+            InstanceType = instanceType,
+            InstanceId = instanceId
+        }).As<RedisSettings>();
+
+        _builder
+            .RegisterType<RedisEventConsumerService>()
+            .As<IEventConsumerService>()
+            .SingleInstance()
+            .OnActivated(x => x.Instance.Start());
+        
+        MediatrAssemblies.Add(typeof(RedisEventConsumerService).Assembly);
+        
+        return this; 
     }
     
     public AutofacConfigurationBuilder AddRenderer()
@@ -249,7 +294,7 @@ public class AutofacConfigurationBuilder
 
     public AutofacConfigurationBuilder RegisterSelf(Type program, bool inclueMediatr = true)
     {
-        _builder.RegisterInstance(program).AsImplementedInterfaces().SingleInstance();
+        _builder.RegisterType(program).As(program).AsImplementedInterfaces().SingleInstance();
 
         if (inclueMediatr)
         {

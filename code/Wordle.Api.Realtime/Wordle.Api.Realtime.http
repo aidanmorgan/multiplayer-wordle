@@ -1,4 +1,4 @@
-@Wordle.Api.Realtime_HostAddress = http://localhost:5045
+@Wordle.Api.Realtime_HostAddress = http://localhost:5300
 
 GET {{Wordle.Api.Realtime_HostAddress}}/weatherforecast/
 Accept: application/json

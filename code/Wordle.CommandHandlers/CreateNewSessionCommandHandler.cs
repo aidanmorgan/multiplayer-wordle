@@ -1,5 +1,4 @@
 ﻿using MediatR;
-using Queries;
 using Wordle.Clock;
 using Wordle.Commands;
 using Wordle.Dictionary;
@@ -8,6 +7,7 @@ using Wordle.Logger;
 using Wordle.Model;
 using Wordle.Persistence;
 using Wordle.Persistence.Dynamo;
+using Wordle.Queries;
 
 namespace Wordle.CommandHandlers;
 

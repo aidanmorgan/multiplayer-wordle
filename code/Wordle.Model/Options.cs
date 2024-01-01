@@ -21,7 +21,7 @@ public class Options : IAggregate
     
     
     public bool AllowGuessesAfterRoundEnd { get; set; } = true;
-    public string? SessionId { get; set; }
+    public Guid? SessionId { get; set; }
     
     public string? TenantId { get; set; }
     public Guid Id { get; set; }

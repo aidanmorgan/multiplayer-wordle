@@ -15,6 +15,13 @@ services:
       - $HOME/.aws/credentials:/home/app/.aws/credentials:ro
     ports:
       - 5100:5100
+    networks:
+      - wordle-local
+    external_links:
+      - kafka1
+      - kafka2
+      - kafka3
+     
       
   private-api:
     image: aidanmorgan/wordle-privateapi
@@ -32,6 +39,35 @@ services:
       - $HOME/.aws/credentials:/home/app/.aws/credentials:ro
     ports:
       - 5200:5200
+    networks:
+      - wordle-local
+    external_links:
+      - kafka1
+      - kafka2
+      - kafka3
+
+  realtime-api:
+    image: aidanmorgan/wordle-realtimeapi
+    build:
+      context: .
+      dockerfile: Wordle.Api.Realtime/Dockerfile
+      args:
+        - BUILD_CONFIGURATION=Development
+    env_file:
+      - .development.env
+      - .sensitive.env
+    environment:
+      - ASPNETCORE_URLS=http://[::]:5300
+    volumes:
+      - $HOME/.aws/credentials:/home/app/.aws/credentials:ro
+    ports:
+      - 5300:5300
+    networks:
+      - wordle-local
+    external_links:
+      - kafka1
+      - kafka2
+      - kafka3
   
   event-handler:
     image: aidanmorgan/wordle-eventhandler
@@ -44,10 +80,13 @@ services:
       - .development.env      
       - .sensitive.env
     volumes:
-      - $HOME/.aws/credentials:/home/app/.aws/credentials:ro
-    deploy:
-      mode: replicated
-      replicas: 3
+      - $HOME/.aws/credentials:/home/app/.aws/credentials:ro  
+    networks:
+      - wordle-local
+    external_links:
+      - kafka1
+      - kafka2
+      - kafka3  
   
   
   timeout-handler:
@@ -62,9 +101,12 @@ services:
       - .sensitive.env
     volumes:
       - $HOME/.aws/credentials:/home/app/.aws/credentials:ro
-    deploy:
-      mode: replicated
-      replicas: 3
+    networks:
+      - wordle-local
+    external_links:
+      - kafka1
+      - kafka2
+      - kafka3
 
 
   board-generator:
@@ -80,9 +122,16 @@ services:
       - .sensitive.env
     volumes:
       - $HOME/.aws/credentials:/home/app/.aws/credentials:ro
-      - ./Wordle.Apps.BoardGenerator/deps:/usr/share/fonts:ro
-    deploy:
-      mode: replicated
-      replicas: 3
+      - ./Wordle.Apps.BoardGenerator/deps:/usr/share/fonts:ro        
+    networks:
+      - wordle-local
+    external_links:
+      - kafka1
+      - kafka2
+      - kafka3
 
 
+networks:
+  wordle-local:
+    name: wordle-local
+    external: true

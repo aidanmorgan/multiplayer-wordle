@@ -1,10 +1,10 @@
 ﻿using MediatR;
-using Queries;
 using Wordle.Clock;
 using Wordle.Commands;
 using Wordle.Events;
 using Wordle.Model;
 using Wordle.Persistence;
+using Wordle.Queries;
 
 namespace Wordle.CommandHandlers;
 

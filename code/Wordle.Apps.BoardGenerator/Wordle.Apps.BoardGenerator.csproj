@@ -9,7 +9,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="AWSSDK.SQS" Version="3.7.300.25" />
+      <PackageReference Include="AWSSDK.SQS" Version="3.7.300.28" />
       <PackageReference Include="MediatR" Version="12.2.0" />
     </ItemGroup>
 

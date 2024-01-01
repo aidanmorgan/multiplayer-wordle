@@ -8,7 +8,6 @@ using GrapeCity.Documents.Text;
 using MediatR;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using Queries;
 using Wordle.Apps.Common;
 using Wordle.Aws.Common;
 using Wordle.Clock;
@@ -16,11 +15,12 @@ using Wordle.Events;
 using Wordle.Logger;
 using Wordle.Model;
 using Wordle.Persistence;
+using Wordle.Queries;
 using Wordle.Render;
 
 namespace Wordle.Apps.BoardGenerator;
 
-public class Program : INotificationHandler<RoundEnded>
+public class Program 
 {
     
     private readonly ILogger _logger;
@@ -34,8 +34,7 @@ public class Program : INotificationHandler<RoundEnded>
 
     public static void Main()
     {
-        EnvironmentVariablesExtensions.SetDefault("INSTANCE_TYPE", "Board-Generator") ;
-        EnvironmentVariablesExtensions.SetDefault("INSTANCE_ID", "9a81b0d6-e62b-4e11-b7a7-7040095de6f8") ;
+        EnvironmentVariables.SetDefaultInstanceConfig(typeof(Program).Assembly.FullName, "9a81b0d6-e62b-4e11-b7a7-7040095de6f8");
         
         var configBuilder = new AutofacConfigurationBuilder()
             .AddGamePersistence()
@@ -44,6 +43,11 @@ public class Program : INotificationHandler<RoundEnded>
             .AddKafkaEventConsuming(EnvironmentVariables.InstanceType, EnvironmentVariables.InstanceId)
             .AddRenderer()
             .RegisterSelf(typeof(Program));
+
+        configBuilder.Callback(x =>
+        {
+            x.RegisterType<BoardGeneratorHandlers>().AsImplementedInterfaces();
+        });
 
         var container = configBuilder.Build();
 
@@ -62,33 +66,8 @@ public class Program : INotificationHandler<RoundEnded>
     private void Run()
     {
         var token = new CancellationTokenSource();
-        Task.WaitAll(_eventConsumerService.RunAsync(token.Token));
-    }
-
-    public async Task Handle(RoundEnded ev, CancellationToken token)
-    {
-        var session = await _mediator.Send(new GetSessionByIdQuery(ev.SessionId), token);
-        if (session == null)
-        {
-            _logger.Log($"Attempting to generate for Session {ev.SessionId}, but could not load.");
-            return;
-        }
-                            
-        var round = session?.Rounds.FirstOrDefault(x => x.Id == ev.RoundId);
-        if (round == null)
-        {
-            _logger.Log($"Attempting to generate for Session {ev.SessionId} and Round {ev.RoundId} but Round could not be found.");
-            return;
-        }
-
-        using var stream = new MemoryStream();
-        _renderer.Render(session?.Rounds.Select(x => new DisplayWord(x.Guess, x.Result)).ToList() ?? new List<DisplayWord>(), null, stream);
-
-        var filename = $"boards/{ev.SessionId}.{ev.RoundId}.png";
-                            
-        await _s3.UploadObjectFromStreamAsync(EnvironmentVariables.BoardBucketName, filename, stream, new Dictionary<string, object>(), token);
-                            
-        _logger.Log($"Uploaded board image: {filename}");
+        Task.WaitAny(_eventConsumerService.RunAsync(token.Token));
         
+        _logger.Log("Exiting....");
     }
 }

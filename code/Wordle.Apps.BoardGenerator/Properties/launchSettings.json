@@ -1,0 +1,11 @@
+{
+  "$schema": "http://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "Wordle.Apps.BoardGenerator": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "WORDLE_ENV_SEARCH_PATHS": "/Users/aidan/dev/personal/multiplayer-wordle/code"
+      }
+    }
+  }
+}

@@ -16,8 +16,7 @@
       "launchUrl": "swagger",
       "applicationUrl": "http://localhost:5100",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development",
-        "AWS_PROFILE": "wordle-profile"
+        "WORDLE_ENV_SEARCH_PATHS": "/Users/aidan/dev/personal/multiplayer-wordle/code"
       }
     },
     "https": {
@@ -27,8 +26,7 @@
       "launchUrl": "swagger",
       "applicationUrl": "https://localhost:7100;http://localhost:5100",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development",
-        "AWS_PROFILE": "wordle-profile"
+        "WORDLE_ENV_SEARCH_PATHS": "/Users/aidan/dev/personal/multiplayer-wordle/code"
       }
     },
     "IIS Express": {
@@ -36,7 +34,7 @@
       "launchBrowser": true,
       "launchUrl": "swagger",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "WORDLE_ENV_SEARCH_PATHS": "/Users/aidan/dev/personal/multiplayer-wordle/code"
       }
     }
   }

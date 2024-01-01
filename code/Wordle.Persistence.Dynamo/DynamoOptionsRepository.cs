@@ -16,7 +16,7 @@ public class DynamoOptionsRepository : DynamoRepositoryImpl<Options>, IOptionsRe
 
     public Task AddAsync(Session s, Options o)
     {
-        o.SessionId = s.CreateSessionIdString();
+        o.SessionId = s.Id;
         return base.AddAsync(o);
     }
 

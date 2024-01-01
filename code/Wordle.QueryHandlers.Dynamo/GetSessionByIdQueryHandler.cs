@@ -1,9 +1,9 @@
 using Amazon.DynamoDBv2.DocumentModel;
 using MediatR;
-using Queries;
 using Wordle.Common;
 using Wordle.Model;
 using Wordle.Persistence.Dynamo;
+using Wordle.Queries;
 
 namespace Wordle.QueryHandlers.Dynamo;
 

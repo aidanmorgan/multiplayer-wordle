@@ -1,31 +1,46 @@
-using Autofac;
-using MediatR;
+using Autofac.Extensions.DependencyInjection;
 using Wordle.Apps.Common;
-using Wordle.Clock;
 
-var builder = WebApplication.CreateBuilder(args);
+namespace Wordle.Api.Private;
 
-// Add services to the container.
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-
-var container = new AutofacConfigurationBuilder().AddGamePersistence().AddEventBridgePublishing("PrivateApi", Guid.NewGuid().ToString()).Build();
-var mediatr = container.Resolve<IMediator>();
-var clock = container.Resolve<IClock>();
-
-
-var app = builder.Build();
-
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+public class Program
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    public static void Main(string[] args)
+    {
+        EnvironmentVariables.SetDefaultInstanceConfig(typeof(Program).Assembly.FullName, "5eca0ee2-a147-4272-8ea6-f4b8a4e6dd76");
+
+        var builder = WebApplication.CreateBuilder(args);
+        
+        builder.Host.UseServiceProviderFactory(new AutofacServiceProviderFactory(x =>
+        {
+            var conf = new AutofacConfigurationBuilder(x);
+            conf.AddDictionary();
+            conf.AddKafkaEventPublishing(EnvironmentVariables.InstanceType, EnvironmentVariables.InstanceId);
+            conf.AddGamePersistence();
+            
+            conf.InitialiseDefaults();
+        }));
+
+        // Add services to the container.
+        builder.Services.AddAuthorization();
+
+        // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+        builder.Services.AddEndpointsApiExplorer();
+        builder.Services.AddSwaggerGen();
+
+        var app = builder.Build();
+
+        // Configure the HTTP request pipeline.
+        if (app.Environment.IsDevelopment())
+        {
+            app.UseSwagger();
+            app.UseSwaggerUI();
+        }
+        else
+        {
+            app.UseHttpsRedirection();
+        }
+
+        app.Run();
+    }
 }
-
-app.UseHttpsRedirection();
-
-
-
-app.Run();

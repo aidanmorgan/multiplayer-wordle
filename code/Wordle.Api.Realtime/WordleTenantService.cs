@@ -8,20 +8,27 @@ using System.Text;
 using MediatR;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
-using Queries;
 using Wordle.Events;
 using Wordle.Model;
+using Wordle.Queries;
 using ILogger = Wordle.Logger.ILogger;
 
 namespace Wordle.Api.Realtime;
 
-public interface IWordleTenantService : INotificationHandler<GuessAdded>
+public interface IWordleTenantService : 
+    INotificationHandler<GuessAdded>, 
+    INotificationHandler<NewRoundStarted>, 
+    INotificationHandler<RoundExtended>, 
+    INotificationHandler<SessionEndedWithSuccess>,
+    INotificationHandler<SessionEndedWithFailure>,
+    INotificationHandler<SessionTerminated>
 {
     Task AddClient(string tenantId, WebSocket webSocket, ConnectionInfo httpContextConnection, CancellationToken ct);
 }
 
 public class WordleTenantService : IWordleTenantService
 {
+    // TODO : this is actually the dynamo content leaking and we need to do something about that
     public const string TenantPrefix = "tenant#web#";
     private readonly IDictionary<string, IObservable<ArraySegment<byte>>> _tenantObservables = new Dictionary<string, IObservable<ArraySegment<byte>>>();
     private readonly ReaderWriterLock _observablesLock = new();
@@ -70,11 +77,96 @@ public class WordleTenantService : IWordleTenantService
             Value = array
         });
     }
+    
+    public async Task Handle(NewRoundStarted notification, CancellationToken cancellationToken)
+    {
+        var observable = GetObservableForTenant(notification.Tenant);
+        
+        if (observable == null)
+        {
+            return;
+        }
+
+        ((Subject<ArraySegment<byte>>)observable)?.OnNextJson(new EventPayload()
+        {
+            GameId = notification.SessionId,
+            Event = "round_updated",
+            Value = new
+            {  
+                BoardUrl = "",
+                RoundEndTime = notification.RoundExpiry
+            }
+        });
+
+    }
+
+    public async Task Handle(RoundExtended notification, CancellationToken cancellationToken)
+    {
+        var observable = GetObservableForTenant(notification.Tenant);
+        
+        if (observable == null)
+        {
+            return;
+        }
+
+        ((Subject<ArraySegment<byte>>)observable)?.OnNextJson(new EventPayload()
+        {
+            GameId = notification.SessionId,
+            Event = "round_extended",
+            Value = new
+            {  
+                RoundEndTime = notification.RoundExpiry
+            }
+        });
+    }
+
+    public async Task Handle(SessionEndedWithSuccess notification, CancellationToken cancellationToken)
+    {
+        var observable = GetObservableForTenant(notification.Tenant);
+        
+        if (observable == null)
+        {
+            return;
+        }
+        
+        ((Subject<ArraySegment<byte>>)observable)?.OnNextJson(new EventPayload()
+        {
+            GameId = notification.SessionId,
+            Event = "game_success",
+        });
+    }
+
+    public async Task Handle(SessionEndedWithFailure notification, CancellationToken cancellationToken)
+    {
+        var observable = GetObservableForTenant(notification.Tenant);
+        
+        if (observable == null)
+        {
+            return;
+        }
+
+        ((Subject<ArraySegment<byte>>)observable)?.OnNextJson(new EventPayload()
+        {
+            GameId = notification.SessionId,
+            Event = "game_failure",
+        });
+    }
+
+    public async Task Handle(SessionTerminated notification, CancellationToken cancellationToken)
+    {
+        var observable = GetObservableForTenant(notification.Tenant);
+        ((Subject<ArraySegment<byte>>)observable)?.OnNextJson(new EventPayload()
+        {
+            GameId = notification.SessionId,
+            Event = "game_terminated",
+        });
+    }
 
     public async Task AddClient(string tenantId, WebSocket webSocket, ConnectionInfo connection, CancellationToken ct)
     {
         if (!tenantId.StartsWith(TenantPrefix))
         {
+            
             tenantId = TenantPrefix + tenantId;
         }
 
@@ -124,7 +216,7 @@ public class WordleTenantService : IWordleTenantService
 
     private async Task WaitForClientDisconnect(WebSocket webSocket, CancellationToken cancellationToken)
     {
-        var buffer = new byte[1024 * 4];
+        var buffer = new byte[8];
         WebSocketReceiveResult? receiveResult = null;
         do {
             try 
