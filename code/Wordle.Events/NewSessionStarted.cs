@@ -2,23 +2,12 @@
 
 namespace Wordle.Events;
 
-public class NewSessionStarted : IEvent
+public class NewSessionStarted : BaseEvent
 {
-    public Guid Id { get; private set; } = Ulid.NewUlid().ToGuid();
-    
-    public string EventType
-    {
-        get => GetType().Name;
-        set { // no-op
-        }
-    }    
-    
     public Guid SessionId { get; private set; }
-    public string Tenant { get; private set; }
 
-    public NewSessionStarted(Guid id, string tenant)
+    public NewSessionStarted(string tenant, Guid id) : base(tenant)
     {
         SessionId = id;
-        Tenant = tenant;
     }
 }

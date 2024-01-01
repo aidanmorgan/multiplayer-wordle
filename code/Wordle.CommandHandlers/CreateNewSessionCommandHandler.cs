@@ -96,8 +96,8 @@ public class CreateNewSessionCommandHandler : IRequestHandler<CreateNewSessionCo
         
         _logger.Log($"Created new Session: {sessionId} with initial Round: {roundId}");
         
-        await _mediator.Publish(new NewSessionStarted(sessionId, request.TenantName), cancellationToken);
-        await _mediator.Publish(new NewRoundStarted(sessionId, roundId, session.ActiveRoundEnd.Value), cancellationToken);
+        await _mediator.Publish(new NewSessionStarted(request.TenantName, sessionId), cancellationToken);
+        await _mediator.Publish(new NewRoundStarted(request.TenantName, sessionId, roundId, session.ActiveRoundEnd.Value), cancellationToken);
         
         return sessionId;
     }

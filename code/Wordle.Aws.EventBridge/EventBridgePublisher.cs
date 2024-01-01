@@ -2,15 +2,16 @@ using System.Net;
 using Amazon.EventBridge;
 using Amazon.EventBridge.Model;
 using Newtonsoft.Json;
+using Wordle.Aws.Common;
+using Wordle.Clock;
 using Wordle.Events;
 using Wordle.Logger;
-using JsonSerializer = System.Text.Json.JsonSerializer;
 
-namespace Wordle.Aws.EventBridgeImpl;
+namespace Wordle.Aws.EventBridge;
 
 // an implementation of INotificationHandlers that push ALL event types out to an event bridge instance
 // with the detail set appropriately for integration with other downstream lambdas
-public class EventBridgePublisher : IEventBridgeEventPublisher
+public class EventBridgePublisher : IEventPublisher
 {
     public const string EventDetailPrefix = "wordle.";
     
@@ -18,11 +19,16 @@ public class EventBridgePublisher : IEventBridgeEventPublisher
     private readonly IAmazonEventBridge _client;
     private readonly string _busName;
     private readonly ILogger _logger;
+    private readonly IClock _clock;
+    private readonly string _instanceId;
+    private readonly string _sourceType;
 
-    public EventBridgePublisher(IAmazonEventBridge client, string busName, ILogger logger)
+    public EventBridgePublisher(IAmazonEventBridge client, string busName, string sourceType, string instanceId, ILogger logger, IClock clock)
     {
         _client = client;
         _busName = busName;
+        _sourceType = sourceType;
+        _instanceId = instanceId;
         _logger = logger;
     }
 
@@ -68,6 +74,16 @@ public class EventBridgePublisher : IEventBridgeEventPublisher
 
     private async Task PublishEvent<T>(T notification, CancellationToken cancellationToken) where T : IEvent
     {
+        if (notification.EventSourceType == _sourceType && notification.EventSourceId == _instanceId)
+        {
+            _logger.Log($"Ignoring event {notification.EventSourceType}#{notification.Id} as it is from {_sourceType}#{_instanceId}.");
+            return;
+        }
+        
+        notification.EventSourceId = _instanceId;
+        notification.EventSourceType = _sourceType;
+        notification.Timestamp = _clock.UtcNow();
+        
         var payload = JsonConvert.SerializeObject(notification);
         
         var entries = new List<PutEventsRequestEntry>() 

@@ -1,9 +1,9 @@
-﻿using MediatR;
+using MediatR;
 using Wordle.Events;
 
-namespace Wordle.Aws.EventBridgeImpl;
+namespace Wordle.Aws.Common;
 
-public interface IEventBridgeEventPublisher :
+public interface IEventPublisher :
     INotificationHandler<GuessAdded>,
     INotificationHandler<NewRoundStarted>,
     INotificationHandler<NewSessionStarted>,

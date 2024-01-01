@@ -26,12 +26,12 @@ public class CreateNewRoundCommandHandler : IRequestHandler<CreateNewRoundComman
     {
         var res = await _mediator.Send(new GetSessionByIdQuery(request.SessionId), cancellationToken);
 
-        if (!res.HasValue)
+        if (res == null)
         {
             throw new CommandException($"Cannot add a new round to Session {request.SessionId}, not found.");
         }
 
-        var session = res.Value.Session;
+        var session = res.Session;
 
         if (session.State != SessionState.ACTIVE)
         {
@@ -44,8 +44,8 @@ public class CreateNewRoundCommandHandler : IRequestHandler<CreateNewRoundComman
                 $"Cannot start new round for Session {request.SessionId}, already active round.");
         }
         
-        var options = res.Value.Options;
-        var rounds = res.Value.Rounds;
+        var options = res.Options;
+        var rounds = res.Rounds;
 
         if (rounds.Count >= options.NumberOfRounds)
         {
@@ -69,7 +69,7 @@ public class CreateNewRoundCommandHandler : IRequestHandler<CreateNewRoundComman
 
         await uow.SaveAsync();
 
-        await _mediator.Publish(new NewRoundStarted(session.Id, round.Id, session.ActiveRoundEnd.Value));
+        await _mediator.Publish(new NewRoundStarted(session.Tenant, session.Id, round.Id, session.ActiveRoundEnd.Value));
 
         return round.Id;
     }

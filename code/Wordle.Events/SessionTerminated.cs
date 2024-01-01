@@ -1,19 +1,10 @@
 ﻿namespace Wordle.Events;
 
-public class SessionTerminated : IEvent
+public class SessionTerminated : BaseEvent
 {
-    public Guid Id { get; } = Ulid.NewUlid().ToGuid();
-    
-    public string EventType
-    {
-        get => GetType().Name;
-        set { // no-op
-        }
-    }    
-    
     public Guid SessionId { get; private set; }
 
-    public SessionTerminated(Guid sessionId)
+    public SessionTerminated(string tenant, Guid sessionId) : base(tenant)
     {
         SessionId = sessionId;
     }

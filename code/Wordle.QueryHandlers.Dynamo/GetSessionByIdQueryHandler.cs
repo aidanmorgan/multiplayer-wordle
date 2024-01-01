@@ -48,6 +48,11 @@ public class GetSessionByIdQueryHandler : IRequestHandler<GetSessionByIdQuery, S
             Session = await _dynamoMappers.SessionMapping.FromDynamoAsync(entry)
         };
 
+        if (!request.IncludeWord)
+        {
+            ret.Session.Word = string.Empty;
+        }
+
         if (request.IncludeOptions)
         {
             var opts = result.FirstOrDefault(x => x.IsOptions());

@@ -27,20 +27,20 @@ public class AddGuessToRoundCommandHandler : IRequestHandler<AddGuessToRoundComm
     {
         SessionQueryResult? queryResult = await _mediator.Send(new GetSessionByIdQuery(request.SessionId));
 
-        if (!queryResult.HasValue)
+        if (queryResult == null)
         {
             throw new CommandException($"Cannot load Session with Id {request.SessionId}.");
         }
 
-        Session session = queryResult.Value.Session;
+        Session session = queryResult.Session;
 
         if (session.State != SessionState.ACTIVE)
         {
             throw new CommandException($"Cannot add Guess to Round for Session {request.SessionId}, it is in an invalid state.");
         }
 
-        Round? round = queryResult.Value.Rounds.FirstOrDefault(x => x.Id == session.ActiveRoundId)!;
-        Options options = queryResult.Value.Options;
+        Round? round = queryResult.Rounds.FirstOrDefault(x => x.Id == session.ActiveRoundId)!;
+        Options options = queryResult.Options;
 
         if (round == null)
         {
@@ -73,11 +73,11 @@ public class AddGuessToRoundCommandHandler : IRequestHandler<AddGuessToRoundComm
         bool roundEndUpdated = await UpdateRoundEndForNewGuess(uow, session, options, round);
         
         await uow.SaveAsync();
-        await _mediator.Publish(new GuessAdded(guessId, round.Id, session.Id), cancellationToken);
+        await _mediator.Publish(new GuessAdded(session.Tenant, guessId, round.Id, session.Id), cancellationToken);
         
         if (roundEndUpdated)
         {
-            await _mediator.Publish(new RoundExtended(session.Id, round.Id, session.ActiveRoundEnd!.Value), cancellationToken);
+            await _mediator.Publish(new RoundExtended(session.Tenant, session.Id, round.Id, session.ActiveRoundEnd!.Value), cancellationToken);
         }
         
         return Unit.Value;

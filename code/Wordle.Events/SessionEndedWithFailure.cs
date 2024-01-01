@@ -1,20 +1,12 @@
 namespace Wordle.Events;
 
-public class SessionEndedWithFailure : IEvent
+public class SessionEndedWithFailure : BaseEvent
 {
-    public Guid Id { get; private set; } = Ulid.NewUlid().ToGuid();
-    
-    public string EventType
-    {
-        get => GetType().Name;
-        set { // no-op
-        }
-    }
-    
-    public Guid SessionId { get; private set; }
+    public Guid SessionId { get; set; }
+ 
 
-    public SessionEndedWithFailure(Guid id)
+    public SessionEndedWithFailure(string tenant, Guid id) : base(tenant)
     {
-        Id = id;
+        SessionId = id;
     }
 }

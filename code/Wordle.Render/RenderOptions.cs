@@ -1,5 +1,11 @@
 ﻿namespace Wordle.Render;
 
+public enum RenderOutput
+{
+    Png,
+    Svg
+}
+
 public class RenderOptions
 {
     private const double SpacingRatio = 10.0 / 1265.0;
@@ -8,6 +14,8 @@ public class RenderOptions
 
     private const double WidthToHeightRatio = 1450.0 / 1265.0;
     private const double HeightToWidthRatio = 1265.0 / 1450.0;
+
+    public RenderOutput Output { get; set; } = RenderOutput.Png;
 
     public float ImageHeight { get; private set; }
     public float ImageWidth { get; private set; }

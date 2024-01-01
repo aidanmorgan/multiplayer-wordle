@@ -10,7 +10,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-var container = new AutofacConfigurationBuilder().AddGamePersistence().AddEventPublishing().Build();
+var container = new AutofacConfigurationBuilder().AddGamePersistence().AddEventBridgePublishing("PrivateApi", Guid.NewGuid().ToString()).Build();
 var mediatr = container.Resolve<IMediator>();
 var clock = container.Resolve<IClock>();
 

@@ -14,4 +14,19 @@
       <PackageReference Include="GrapeCity.Documents.Imaging" Version="7.0.0" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="fonts\" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Remove="fonts\ClearSans-Regular.ttf" />
+      <EmbeddedResource Include="fonts\ClearSans-Regular.ttf">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </EmbeddedResource>
+      <None Remove="fonts\HelveticaNeue.ttf" />
+      <EmbeddedResource Include="fonts\HelveticaNeue.ttf">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </EmbeddedResource>
+    </ItemGroup>
+
 </Project>

@@ -31,12 +31,12 @@ public class EndSessionCommandHandler : IRequestHandler<EndSessionCommand, Unit>
 
         SessionQueryResult? queryResult = await _mediator.Send(new GetSessionByIdQuery(request.SessionId));
 
-        if (!queryResult.HasValue)
+        if (queryResult == null)
         {
             throw new CommandException($"Cannot find Session with id {request.SessionId}.");
         }
 
-        Session session = queryResult.Value.Session;
+        Session session = queryResult.Session;
         
         if (session == null)
         {
@@ -58,11 +58,11 @@ public class EndSessionCommandHandler : IRequestHandler<EndSessionCommand, Unit>
 
         if (request.Success)
         {
-            await _mediator.Publish(new SessionEndedWithSuccess(session.Id), cancellationToken);
+            await _mediator.Publish(new SessionEndedWithSuccess(session.Tenant, session.Id), cancellationToken);
         }
         else
         {
-            await _mediator.Publish(new SessionEndedWithFailure(session.Id), cancellationToken);
+            await _mediator.Publish(new SessionEndedWithFailure(session.Tenant, session.Id), cancellationToken);
         }
 
         return Unit.Value;

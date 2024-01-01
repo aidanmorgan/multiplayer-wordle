@@ -9,8 +9,11 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\Wordle.Aws.Common\Wordle.Aws.Common.csproj" />
       <ProjectReference Include="..\Wordle.Aws.DictionaryImpl\Wordle.Aws.DictionaryImpl.csproj" />
-      <ProjectReference Include="..\Wordle.Aws.EventBridgeImpl\Wordle.Aws.EventBridgeImpl.csproj" />
+      <ProjectReference Include="..\Wordle.Aws.EventBridge\Wordle.Aws.EventBridge.csproj" />
+      <ProjectReference Include="..\Wordle.Aws.Kafka.Consumer\Wordle.Aws.Kafka.Consumer.csproj" />
+      <ProjectReference Include="..\Wordle.Aws.Kafka.Publisher\Wordle.Aws.Kafka.Publisher.csproj" />
       <ProjectReference Include="..\Wordle.Clock\Wordle.Clock.csproj" />
       <ProjectReference Include="..\Wordle.CommandHandlers\Wordle.CommandHandlers.csproj" />
       <ProjectReference Include="..\Wordle.Persistence.Dynamo\Wordle.Persistence.Dynamo.csproj" />

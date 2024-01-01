@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Confluent.Kafka" Version="2.3.0" />
+      <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Wordle.Aws.Common\Wordle.Aws.Common.csproj" />
+      <ProjectReference Include="..\Wordle.Aws.Kafka.Common\Wordle.Aws.Kafka.Common.csproj" />
+      <ProjectReference Include="..\Wordle.Clock\Wordle.Clock.csproj" />
+      <ProjectReference Include="..\Wordle.Logger\Wordle.Logger.csproj" />
+    </ItemGroup>
+
+</Project>

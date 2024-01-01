@@ -1,5 +1,6 @@
 ﻿// See https://aka.ms/new-console-template for more information
 
+using System.Reflection;
 using Amazon.SQS;
 using Amazon.SQS.Model;
 using Autofac;
@@ -16,15 +17,13 @@ using Wordle.Persistence;
 
 namespace Wordle.Apps.TimeoutProcessor;
 
-public class Program
+public class Program 
 {
-    private static readonly Guid InstanceId = Guid.NewGuid();
-    
     // the maximum number of messages to read from the queue at once
     private const int MAX_TIMEOUT_MESSAGES = 5;
     
     // the amount of time to wait for messages before retrying
-    private const int READ_WAIT_TIME_SECONDS = 10;
+    private const int READ_WAIT_TIME_SECONDS = 20;
     
     // how long each message batch should be allowed for processing before making the message
     // visible to other readers
@@ -36,28 +35,32 @@ public class Program
     private readonly IGameUnitOfWorkFactory _uowFactory;
     
     private readonly IAmazonSQS _sqs;
-    
+
 
     public static void Main()
     {
+        EnvironmentVariablesExtensions.SetDefault("INSTANCE_TYPE", "Timeout-Processor") ;
+        EnvironmentVariablesExtensions.SetDefault("INSTANCE_ID", "85c9a94e-8e0c-4984-90bc-4c0403bd44b7") ;
+
         var configBuilder = new AutofacConfigurationBuilder()
             .AddGamePersistence()
             .AddDictionary()
-            .AddEventPublishing()
-            .AddEventHandling();
-        
-        var program = new Program(configBuilder.Build()); 
+            .AddKafkaEventPublishing(EnvironmentVariables.InstanceType, EnvironmentVariables.InstanceId)
+            .RegisterSelf(typeof(Program));
+
+        var container = configBuilder.Build();
+        var program = container.Resolve<Program>(); 
         program.Run();
     }
     
-    public Program(IContainer container)
+    public Program(IMediator mediator, IClock clock, IAmazonSQS sqs, IGameUnitOfWorkFactory factory, ILogger logger)
     {
-        _mediator = container.Resolve<IMediator>();
-        _clock = container.Resolve<IClock>();
-        _sqs = container.Resolve<IAmazonSQS>();
+        _mediator = mediator;
+        _clock = clock;
+        _sqs = sqs;
 
-        _logger = container.Resolve<ILogger>();
-        _uowFactory = container.Resolve<IGameUnitOfWorkFactory>();
+        _uowFactory = factory;
+        _logger = logger;
     }
 
     private void Run()
@@ -65,7 +68,7 @@ public class Program
         var token = new CancellationTokenSource();
         
         var gameRenewalQueue = Task.Run(async () => { await TimeoutProcessingLoopAsync(token); }, token.Token);
-        
+
         try
         {
             Task.WaitAll(new Task[] { gameRenewalQueue }, token.Token);
@@ -81,6 +84,7 @@ public class Program
 
     private async Task TimeoutProcessingLoopAsync(CancellationTokenSource token)
     {
+        _logger.Log($"Listening for timeout payloads on {EnvironmentVariables.TimeoutQueueUrl}");
         while (!token.IsCancellationRequested)
         {
             try
@@ -108,65 +112,17 @@ public class Program
                         ReceiptHandle = message.ReceiptHandle
                     });
                 }
+
+                if (messages.Messages.Count == 0)
+                {
+                    _logger.Log($"No messages received in last {READ_WAIT_TIME_SECONDS} seconds.");
+                }
             }
             catch (Exception x)
             {
                 _logger.Log("exception", $"Exception thrown processing timeouts.");
                 _logger.Log(x.Message);
             }
-        }
-    }
-
-    // Called when the event bus publishes a NewRoundStarted event, will enqueue an automated timeout
-    // that will extend the round if required
-    public async Task SubmitTimeout(NewRoundStarted detail, CancellationToken cancellationToken)
-    {
-        if (detail.SessionId == Guid.Empty || detail.RoundId == Guid.Empty)
-        {
-            _logger.Log($"Ignoring invalid {nameof(NewRoundStarted)} message.");
-            return; 
-        }
-        
-        _logger.Log($"Received {nameof(NewRoundStarted)} event for Round {detail.RoundId}. Starting timer.");
-
-        try
-        {
-            await _sqs.SendMessageAsync(new SendMessageRequest(EnvironmentVariables.TimeoutQueueUrl,
-                JsonConvert.SerializeObject(TimeoutPayload.Create(detail)))
-            {
-                DelaySeconds = (int)Math.Max(Math.Ceiling(detail.RoundExpiry.Subtract(_clock.UtcNow()).TotalSeconds), 0)
-            }, cancellationToken);
-        }
-        catch (Exception x)
-        {
-            throw;
-        }
-    }
-
-    // Called when the event bus publishes a RoundExtended event, will enqueue an automated timeout
-    // that will extend the round if required.
-    public async Task SubmitTimeout(RoundExtended notification, CancellationToken cancellationToken)
-    {
-        if (notification.SessionId == Guid.Empty || notification.RoundId == Guid.Empty)
-        {
-            _logger.Log($"Ignoring invalid {nameof(RoundExtended)} message.");
-            return; 
-        }
-
-        _logger.Log($"Received {nameof(RoundExtended)} event for Round {notification.RoundId}. Starting timer.");
-
-        try
-        {
-            await _sqs.SendMessageAsync(new SendMessageRequest(EnvironmentVariables.TimeoutQueueUrl,
-                JsonConvert.SerializeObject(TimeoutPayload.Create(notification)))
-            {
-                DelaySeconds =
-                    (int)Math.Max(Math.Ceiling(notification.RoundExpiry.Subtract(_clock.UtcNow()).TotalSeconds), 0)
-            }, cancellationToken);
-        }
-        catch (Exception)
-        {
-            throw;
         }
     }
     
@@ -180,13 +136,13 @@ public class Program
         
         var qr = await _mediator.Send(new GetSessionByIdQuery(p.SessionId));
 
-        if (!qr.HasValue)
+        if (qr == null)
         {
             _logger.Log($"Cannot end active round for session {p.SessionId}, no Session found.");
             return;
         }
 
-        var session = qr.Value.Session;
+        var session = qr.Session;
 
         if (session.State != SessionState.ACTIVE)
         {

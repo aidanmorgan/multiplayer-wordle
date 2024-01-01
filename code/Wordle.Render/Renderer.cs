@@ -1,13 +1,34 @@
 using System.Drawing;
+using System.Reflection;
 using System.Text;
 using GrapeCity.Documents.Imaging;
 using GrapeCity.Documents.Svg;
+using GrapeCity.Documents.Text;
 using Wordle.Model;
 
 namespace Wordle.Render;
 
-public class PngRenderer : IRenderer
+public class Renderer : IRenderer
 {
+    private static readonly List<string> EmbeddedFonts = new List<string>()
+    {
+        "fonts.ClearSans-Regular.ttf",
+        "fonts.HelveticaNeue.ttf"
+    };
+    
+    static Renderer()
+    {
+        var assembly = Assembly.GetAssembly(typeof(Renderer));
+
+        var fonts = EmbeddedFonts.Select(x =>
+        {
+            using var stream = assembly.GetManifestResourceStream($"{assembly.GetName().Name}.{x}");
+            return Font.FromStream(stream);
+        });
+        
+        FontCollection.SystemFonts.AppendFallbackFonts(fonts.ToArray());
+        FontCollection.SystemFonts.DefaultFont = fonts.First();
+    }
     public void Render(List<DisplayWord> words, RenderOptions? inoos, Stream resultStream)
     {
         var renderOptions = inoos ?? RenderOptions.CreateFromWidth(500);
@@ -94,12 +115,26 @@ public class PngRenderer : IRenderer
             }
         }
 
-
-        using (var bmp = new GcBitmap((int)renderOptions.ImageWidth, (int)renderOptions.ImageHeight, false))
-        using (var g = bmp.CreateGraphics(Color.FromArgb(renderOptions.BackgroundColour.ToArgbInt())))
+        switch (renderOptions.Output)
         {
-            g.DrawSvg(svg, PointF.Empty);
-            bmp.SaveAsPng(resultStream);
+            case RenderOutput.Svg:
+            {
+                svg.Save(resultStream);
+                break;
+            }
+
+            case RenderOutput.Png:
+            {
+                
+                using (var bmp = new GcBitmap((int)renderOptions.ImageWidth, (int)renderOptions.ImageHeight, false))
+                using (var g = bmp.CreateGraphics(Color.FromArgb(renderOptions.BackgroundColour.ToArgbInt())))
+                {
+                    g.DrawSvg(svg, PointF.Empty);
+                    bmp.SaveAsPng(resultStream);
+                }
+
+                break;
+            }
         }
     }
 }

@@ -29,14 +29,14 @@ public class EndActiveRoundCommandHandler : IRequestHandler<EndActiveRoundComman
     {
         var res = await _mediator.Send(new GetSessionByIdQuery(request.SessionId));
 
-        if (!res.HasValue)
+        if (res == null)
         {
             throw new CommandException($"Cannot end active Round for Session {request.SessionId}, Session not found.");
         }
 
-        var session = res.Value.Session;
-        var options = res.Value.Options;
-        var rounds = res.Value.Rounds;
+        var session = res.Session;
+        var options = res.Options;
+        var rounds = res.Rounds;
 
         if (session.State != SessionState.ACTIVE)
         {
@@ -88,7 +88,7 @@ public class EndActiveRoundCommandHandler : IRequestHandler<EndActiveRoundComman
                     await uow.Sessions.UpdateAsync(session);
                     await uow.SaveAsync();
                     
-                    await _mediator.Publish(new RoundExtended(session.Id, round.Id, session.ActiveRoundEnd.Value), cancellationToken);
+                    await _mediator.Publish(new RoundExtended(session.Tenant, session.Id, round.Id, session.ActiveRoundEnd.Value), cancellationToken);
                     
                     _logger.Log($"Extending Round {round.Id} as the end criteria is unmet. Next check: {session.ActiveRoundEnd}");
                     return Unit.Value;
@@ -110,8 +110,8 @@ public class EndActiveRoundCommandHandler : IRequestHandler<EndActiveRoundComman
             await uow.Sessions.UpdateAsync(session);
             await uow.SaveAsync();
 
-            await _mediator.Publish(new RoundTerminated(session.Id, round.Id), cancellationToken);
-            await _mediator.Publish(new SessionTerminated(session.Id), cancellationToken);
+            await _mediator.Publish(new RoundTerminated(session.Tenant, session.Id, round.Id), cancellationToken);
+            await _mediator.Publish(new SessionTerminated(session.Tenant, session.Id), cancellationToken);
 
             _logger.Log($"TERMINATING Round {round.Id} and Session {session.Id}");
             
@@ -122,7 +122,7 @@ public class EndActiveRoundCommandHandler : IRequestHandler<EndActiveRoundComman
         await UpdateRoundSelectedGuess(uow, round, word, session);
 
         await uow.SaveAsync();
-        await _mediator.Publish(new RoundEnded(session.Id, round.Id), cancellationToken);
+        await _mediator.Publish(new RoundEnded(session.Tenant, session.Id, round.Id), cancellationToken);
         
         _logger.Log($"Ending Round {round.Id}, selected word was {word}.");
 

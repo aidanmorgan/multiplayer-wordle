@@ -80,7 +80,7 @@ services:
       - .sensitive.env
     volumes:
       - $HOME/.aws/credentials:/home/app/.aws/credentials:ro
-      - /usr/share/fonts:/usr/share/fonts
+      - ./Wordle.Apps.BoardGenerator/deps:/usr/share/fonts:ro
     deploy:
       mode: replicated
       replicas: 3

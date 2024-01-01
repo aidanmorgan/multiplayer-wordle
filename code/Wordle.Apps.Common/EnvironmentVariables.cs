@@ -40,5 +40,12 @@ public  static class EnvironmentVariables
     
     public static string GameDynamoTableName => Environment.GetEnvironmentVariable("GAME_TABLE");
     public static string DictionaryDynamoTableName => Environment.GetEnvironmentVariable("DICTIONARY_TABLE");
-    public static string EventBridgeName => Environment.GetEnvironmentVariable("EVENTBRIDGE_NAME");    
+    public static string EventBridgeName => Environment.GetEnvironmentVariable("EVENTBRIDGE_NAME");
+
+    public static string InstanceId => Environment.GetEnvironmentVariable("INSTANCE_ID") ?? Guid.NewGuid().ToString();
+    public static string InstanceType => Environment.GetEnvironmentVariable("INSTANCE_TYPE");
+    
+    
+    public static string KafkaBootstrapServers => Environment.GetEnvironmentVariable("KAFKA_BOOTSTRAP_SERVERS");
+    public static string KafkaEventTopic => Environment.GetEnvironmentVariable("KAFKA_EVENT_TOPIC");
 }
