@@ -1,4 +1,5 @@
 ﻿
+using Dapper;
 using Microsoft.EntityFrameworkCore;
 using Wordle.Model;
 
@@ -6,11 +7,11 @@ namespace Wordle.Dictionary.EfCore;
 
 public class EfCoreDictionaryService : IWordleDictionaryService
 {
-    private static readonly List<DictionaryDetail> Details = new List<DictionaryDetail>();
-
+    private static readonly List<DictionaryDetail> Details;
+    
     static EfCoreDictionaryService()
     {
-        var collection = new List<DictionaryDetail>
+        Details = new List<DictionaryDetail>
         {
             new DictionaryDetail() {DictionaryName = "dutch", RowCount = 879, WordLength = 3},
             new DictionaryDetail() {DictionaryName = "dutch", RowCount = 4964, WordLength = 5},
@@ -94,9 +95,9 @@ public class EfCoreDictionaryService : IWordleDictionaryService
     }
 
     private readonly Random _random = new Random();
-    private readonly DictionaryContext _context;
+    private readonly DictionaryEfCoreSettings _context;
 
-    public EfCoreDictionaryService(DictionaryContext context)
+    public EfCoreDictionaryService(DictionaryEfCoreSettings context)
     {
         _context = context;
     }
@@ -109,10 +110,16 @@ public class EfCoreDictionaryService : IWordleDictionaryService
     public async Task<string> RandomWord(string dictionary, int numLetters)
     {
         var entry = await GetDictionary(dictionary, numLetters);
-        var rowNum = _random.Next(0, entry.RowCount);
+        var rowNum = _random.Next(0, entry!.RowCount);
 
-        var word = _context.Words
-            .FromSql($"SELECT * FROM words  WHERE language = {dictionary} AND wordlength = {numLetters} OFFSET {rowNum} LIMIT 1")
+        var word = (await _context.Connection.QueryAsync<Entry>(
+            "SELECT * FROM words  WHERE language = @language AND wordlength = @wordLength OFFSET @offset LIMIT 1",
+            new
+            {
+                Language = dictionary,
+                WordLength = numLetters,
+                Offset = rowNum
+            }))
             .FirstOrDefault();
 
         return word!.Word;
@@ -126,6 +133,7 @@ public class EfCoreDictionaryService : IWordleDictionaryService
     public Task<DictionaryDetail?> GetDictionary(string dictionary, int numLetters)
     {
         return Task.FromResult(
-            Details.FirstOrDefault(x => x.DictionaryName == dictionary && x.WordLength == numLetters));
+            Details.FirstOrDefault(x => string.Equals(x.DictionaryName,dictionary, StringComparison.InvariantCultureIgnoreCase) 
+                                        && x.WordLength == numLetters));
     }
 }

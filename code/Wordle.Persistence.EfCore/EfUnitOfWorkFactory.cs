@@ -4,15 +4,15 @@ namespace Wordle.Persistence.EfCore;
 
 public class EfUnitOfWorkFactory : IGameUnitOfWorkFactory
 {
-    private readonly string _connectionString;
+    private readonly WordleEfCoreSettings _settings;
 
-    public EfUnitOfWorkFactory(string connectionString)
+    public EfUnitOfWorkFactory(WordleEfCoreSettings settings)
     {
-        _connectionString = connectionString;
+        _settings = settings;
     }
 
     public IGameUnitOfWork Create()
     {
-        return new EfGameUnitOfWork(new WordleContext(_connectionString));
+        return new EfGameUnitOfWork(_settings.DbContext);
     }
 }

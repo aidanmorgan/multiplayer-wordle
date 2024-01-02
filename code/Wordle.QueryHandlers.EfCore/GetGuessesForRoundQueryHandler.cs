@@ -1,27 +1,29 @@
+using Dapper;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 using Wordle.EfCore;
 using Wordle.Model;
 using Wordle.Queries;
 
-namespace Wordle.QueryHandlers.EntityFramework;
+namespace Wordle.QueryHandlers.EfCore;
 
 public class GetGuessesForRoundQueryHandler : IRequestHandler<GetGuessesForRoundQuery, List<Guess>>
 {
-    private readonly WordleContext _context;
+    private readonly WordleEfCoreSettings _context;
 
-    public GetGuessesForRoundQueryHandler(WordleContext context)
+    public GetGuessesForRoundQueryHandler(WordleEfCoreSettings context)
     {
         _context = context;
     }
 
-    public Task<List<Guess>> Handle(GetGuessesForRoundQuery request, CancellationToken cancellationToken)
+    public async Task<List<Guess>> Handle(GetGuessesForRoundQuery request, CancellationToken cancellationToken)
     {
-        var guesses = _context
-            .Guesses
-            .Where(x => x.RoundId == request.RoundId)
-            .ToList();
+        var guesses = await _context.Connection.QueryAsync<Guess>(
+            "SELECT * FROM guesses WHERE roundid = @id",
+            new
+            {
+                Id = request.RoundId
+            });
 
-        return Task.FromResult(guesses);
+        return guesses.ToList();
     }
 }

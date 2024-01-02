@@ -1,4 +1,4 @@
-namespace Wordle.QueryHandlers.EntityFramework;
+namespace Wordle.QueryHandlers.EfCore;
 
 public class Usings
 {

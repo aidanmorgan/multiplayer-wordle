@@ -16,9 +16,9 @@ public class Program
         builder.Host.UseServiceProviderFactory(new AutofacServiceProviderFactory(x =>
         {
             var conf = new AutofacConfigurationBuilder(x);
-            conf.AddDynamoDictionary();
             conf.AddRedisEventPublisher(EventSourceType, EnvironmentVariables.InstanceId);
             conf.AddPostgresPersistence();
+            conf.AddPostgresDictionary();
             
             conf.InitialiseDefaults();
         }));

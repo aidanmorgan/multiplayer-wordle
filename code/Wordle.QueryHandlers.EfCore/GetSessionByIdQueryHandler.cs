@@ -1,34 +1,35 @@
+using Dapper;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Wordle.EfCore;
 using Wordle.Model;
 using Wordle.Queries;
 
-namespace Wordle.QueryHandlers.EntityFramework;
+namespace Wordle.QueryHandlers.EfCore;
 
 public class GetSessionByIdQueryHandler : IRequestHandler<GetSessionByIdQuery, SessionQueryResult?>
 {
-    private readonly WordleContext _context;
+    private readonly WordleEfCoreSettings _context;
 
-    public GetSessionByIdQueryHandler(WordleContext context)
+    public GetSessionByIdQueryHandler(WordleEfCoreSettings context)
     {
         _context = context;
     }
 
-    public Task<SessionQueryResult?> Handle(GetSessionByIdQuery request, CancellationToken cancellationToken)
+    public async Task<SessionQueryResult?> Handle(GetSessionByIdQuery request, CancellationToken cancellationToken)
     {
+        var session = (await _context.Connection.QueryAsync<Session>(
+            "SELECT * FROM sessions WHERE id = @id",
+            new
+            {
+                Id = request.Id
+            })).FirstOrDefault();
+        
         var result = new SessionQueryResult();
-
-        var sessionId = $"{request.Id}";
-
-        var session = _context.Sessions
-            .FromSql($"SELECT * FROM sessions WHERE id = '{sessionId}'")
-            .AsEnumerable()
-            .FirstOrDefault((Session?)null);
-
+ 
         if (session == null)
         {
-            return Task.FromResult((SessionQueryResult)null);
+            return null;
         }
         else
         {
@@ -42,16 +43,24 @@ public class GetSessionByIdQueryHandler : IRequestHandler<GetSessionByIdQuery, S
 
         if (request.IncludeRounds)
         {
-            result.Rounds = _context.Rounds.Where(x => x.SessionId == request.Id).ToList();
+            result.Rounds = (await _context.Connection.QueryAsync<Round>(
+                "SELECT * FROM rounds WHERE sessionid = @sessionId",
+                new
+                {
+                    SessionId = request.Id
+                })).ToList();
         }
 
         if (request.IncludeOptions)
         {
-            result.Options =
-                _context.Options.Where(x => x.SessionId == request.Id && x.TenantId == null).FirstOrDefault((Options?)null);
-
+            result.Options = (await _context.Connection.QueryAsync<Options>(
+                "SELECT * FROM options WHERE sessionId = @sessionId AND tenantid IS NULL",
+                new
+                {
+                    SessionId = request.Id
+                })).First();
         }
 
-        return Task.FromResult((SessionQueryResult?)result);
+        return result;
     }
 }

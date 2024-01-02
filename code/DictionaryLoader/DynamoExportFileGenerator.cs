@@ -25,7 +25,7 @@ public class DynamoExportFileGenerator : Common
         }
 
 
-        await (TYPES.Select(async dict =>
+        await (DictionaryTypes.Select(async dict =>
         {
             var lines = ReadDictionary(dict);
 

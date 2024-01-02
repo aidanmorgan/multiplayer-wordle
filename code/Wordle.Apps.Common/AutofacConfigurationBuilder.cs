@@ -27,6 +27,7 @@ using Wordle.Model;
 using Wordle.Persistence;
 using Wordle.Persistence.Dynamo;
 using Wordle.Persistence.EfCore;
+using Wordle.QueryHandlers.EfCore;
 using Wordle.Redis.Common;
 using Wordle.Redis.Consumer;
 using Wordle.Redis.Publisher;
@@ -125,20 +126,19 @@ public class AutofacConfigurationBuilder
 
     public AutofacConfigurationBuilder AddPostgresPersistence()
     {
-        MediatrAssemblies.Add(typeof(Wordle.QueryHandlers.EntityFramework.Usings).Assembly);
+        MediatrAssemblies.Add(typeof(Usings).Assembly);
 
         _builder.RegisterType<Wordle.EfCore.EfMigrator>()
             .As<IStartable>()
             .SingleInstance();
         
         _builder
-            .RegisterType<WordleContext>()
-            .As<WordleContext>()
+            .RegisterType<WordleEfCoreSettings>()
+            .As<WordleEfCoreSettings>()
             .WithParameter(new PositionalParameter(0, EnvironmentVariables.PostgresConnectionString));
 
         _builder.RegisterType<EfUnitOfWorkFactory>()
             .As<IGameUnitOfWorkFactory>()
-            .WithParameter(new PositionalParameter(0, EnvironmentVariables.PostgresConnectionString))
             .SingleInstance();
 
         return this;
@@ -168,9 +168,14 @@ public class AutofacConfigurationBuilder
             .SingleInstance();
         
         _builder
-            .RegisterType<DictionaryContext>()
-            .As<DictionaryContext>()
+            .RegisterType<DictionaryEfCoreSettings>()
+            .As<DictionaryEfCoreSettings>()
             .WithParameter(new PositionalParameter(0, EnvironmentVariables.PostgresConnectionString));
+
+        _builder
+            .RegisterType<EfCoreDictionaryService>()
+            .As<IWordleDictionaryService>()
+            .SingleInstance();
 
         return this;
     }

@@ -5,15 +5,15 @@ namespace Wordle.EfCore;
 
 public class EfMigrator : IStartable
 {
-    private WordleContext _context;
+    private WordleEfCoreSettings _context;
 
-    public EfMigrator(WordleContext context)
+    public EfMigrator(WordleEfCoreSettings context)
     {
         _context = context;
     }
 
     public void Start()
     {
-        _context.Database.Migrate();
+        _context.DbContext.Database.Migrate();
     }
 }

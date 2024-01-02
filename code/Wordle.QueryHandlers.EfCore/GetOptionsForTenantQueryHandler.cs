@@ -1,31 +1,34 @@
+using Dapper;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Wordle.EfCore;
 using Wordle.Model;
 using Wordle.Queries;
 
-namespace Wordle.QueryHandlers.EntityFramework;
+namespace Wordle.QueryHandlers.EfCore;
 
 public class GetOptionsForTenantQueryHandler:  IRequestHandler<GetOptionsForTenantQuery, Options?>
 {
-    private readonly WordleContext _context;
+    private readonly WordleEfCoreSettings _context;
 
-    public GetOptionsForTenantQueryHandler(WordleContext context)
+    public GetOptionsForTenantQueryHandler(WordleEfCoreSettings context)
     {
         _context = context;
     }
 
 
-    public Task<Options?> Handle(GetOptionsForTenantQuery request, CancellationToken cancellationToken)
+    public async Task<Options?> Handle(GetOptionsForTenantQuery request, CancellationToken cancellationToken)
     {
         var tenantId = $"{request.TenantType}#{request.TenantName}";
-        
-        var options = _context
-            .Options
-            .FromSql($"SELECT * FROM options WHERE tenantid = '{tenantId}'")
-            .ToList()
-            .FirstOrDefault((Options)null);
 
-        return Task.FromResult(options);
+        var options = await _context.Connection.QueryAsync<Options>(
+            "SELECT * FROM options WHERE tenantid = @tenantId AND sessionid IS NULL",
+            new
+            {
+                TenantId = tenantId
+            });
+        
+
+        return options.FirstOrDefault();
     }
 }

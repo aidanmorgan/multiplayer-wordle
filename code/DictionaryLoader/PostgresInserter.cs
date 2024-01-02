@@ -19,7 +19,7 @@ public class PostgresInserter : Common
         var context = new DictionaryContext(_connectionString);
         await context.Database.MigrateAsync();
 
-        TYPES.ForEach(type =>
+        DictionaryTypes.ForEach(type =>
         {
             var words = ReadDictionary(type);
 

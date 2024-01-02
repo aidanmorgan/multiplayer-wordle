@@ -2,7 +2,7 @@ namespace DictionaryLoader;
 
 public abstract class Common
 {
-    protected readonly List<string> TYPES = new List<string>()
+    protected readonly List<string> DictionaryTypes = new List<string>()
     {
         "dutch",
         "french",
@@ -12,7 +12,7 @@ public abstract class Common
         "wordle"
     };
     
-    private readonly List<string> DisallowedCharacters = [",", " ", ".", "`", "'"];
+    private readonly List<string> _disallowedCharacters = [",", " ", ".", "`", "'"];
 
     protected List<string> ReadDictionary(string dict)
     {
@@ -20,7 +20,7 @@ public abstract class Common
 
         return lines
             .Select(x => x.Trim().ToUpperInvariant())
-            .Where(cleaned => cleaned.Length >= 3 && !DisallowedCharacters.Any(cleaned.Contains))
+            .Where(cleaned => cleaned.Length >= 3 && !_disallowedCharacters.Any(cleaned.Contains))
             .ToList();
     }
     
