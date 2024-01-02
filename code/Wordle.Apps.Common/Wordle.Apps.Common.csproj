@@ -10,17 +10,18 @@
 
     <ItemGroup>
       <ProjectReference Include="..\Wordle.Aws.Common\Wordle.Aws.Common.csproj" />
-      <ProjectReference Include="..\Wordle.Aws.DictionaryImpl\Wordle.Aws.DictionaryImpl.csproj" />
+      <ProjectReference Include="..\Wordle.Dictionary.DynamoDb\Wordle.Dictionary.DynamoDb.csproj" />
       <ProjectReference Include="..\Wordle.Aws.EventBridge\Wordle.Aws.EventBridge.csproj" />
-      <ProjectReference Include="..\Wordle.EntityFramework\Wordle.EntityFramework.csproj" />
+      <ProjectReference Include="..\Wordle.Dictionary.EfCore\Wordle.Dictionary.EfCore.csproj" />
+      <ProjectReference Include="..\Wordle.EfCore\Wordle.EfCore.csproj" />
       <ProjectReference Include="..\Wordle.Kafka.Consumer\Wordle.Kafka.Consumer.csproj" />
       <ProjectReference Include="..\Wordle.Kafka.Publisher\Wordle.Kafka.Publisher.csproj" />
       <ProjectReference Include="..\Wordle.Clock\Wordle.Clock.csproj" />
       <ProjectReference Include="..\Wordle.CommandHandlers\Wordle.CommandHandlers.csproj" />
-      <ProjectReference Include="..\Wordle.Persistence.Dynamo\Wordle.Persistence.Dynamo.csproj" />
-      <ProjectReference Include="..\Wordle.Persistence.EntityFramework\Wordle.Persistence.EntityFramework.csproj" />
-      <ProjectReference Include="..\Wordle.QueryHandlers.Dynamo\Wordle.QueryHandlers.Dynamo.csproj" />
-      <ProjectReference Include="..\Wordle.QueryHandlers.EntityFramework\Wordle.QueryHandlers.EntityFramework.csproj" />
+      <ProjectReference Include="..\Wordle.Persistence.DynamoDb\Wordle.Persistence.DynamoDb.csproj" />
+      <ProjectReference Include="..\Wordle.Persistence.EfCore\Wordle.Persistence.EfCore.csproj" />
+      <ProjectReference Include="..\Wordle.QueryHandlers.DynamoDb\Wordle.QueryHandlers.DynamoDb.csproj" />
+      <ProjectReference Include="..\Wordle.QueryHandlers.EfCore\Wordle.QueryHandlers.EfCore.csproj" />
       <ProjectReference Include="..\Wordle.Redis.Common\Wordle.Redis.Common.csproj" />
       <ProjectReference Include="..\Wordle.Redis.Consumer\Wordle.Redis.Consumer.csproj" />
       <ProjectReference Include="..\Wordle.Redis.Publisher\Wordle.Redis.Publisher.csproj" />

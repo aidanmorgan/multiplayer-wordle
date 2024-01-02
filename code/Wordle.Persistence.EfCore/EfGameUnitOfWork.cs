@@ -1,7 +1,7 @@
-using Wordle.EntityFramework;
+using Wordle.EfCore;
 using Wordle.Model;
 
-namespace Wordle.Persistence.EntityFramework;
+namespace Wordle.Persistence.EfCore;
 
 public class EfGameUnitOfWork : IGameUnitOfWork
 {

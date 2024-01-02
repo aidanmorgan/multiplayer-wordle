@@ -9,7 +9,7 @@
     <ItemGroup>
       <ProjectReference Include="..\Wordle.Common\Wordle.Common.csproj" />
       <ProjectReference Include="..\Wordle.Model\Wordle.Model.csproj" />
-      <ProjectReference Include="..\Wordle.Persistence.Dynamo\Wordle.Persistence.Dynamo.csproj" />
+      <ProjectReference Include="..\Wordle.Persistence.DynamoDb\Wordle.Persistence.DynamoDb.csproj" />
       <ProjectReference Include="..\Wordle.Queries\Wordle.Queries.csproj" />
     </ItemGroup>
 

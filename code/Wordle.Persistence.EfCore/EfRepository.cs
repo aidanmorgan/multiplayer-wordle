@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
-namespace Wordle.Persistence.EntityFramework;
+namespace Wordle.Persistence.EfCore;
 
 public class EfRepository<T> : IRepository<T> where T : class, new()
 {

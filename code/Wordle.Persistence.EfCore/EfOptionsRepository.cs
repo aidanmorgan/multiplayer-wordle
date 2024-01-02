@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Wordle.Model;
 
-namespace Wordle.Persistence.EntityFramework;
+namespace Wordle.Persistence.EfCore;
 
 public class EfOptionsRepository : IOptionsRepository
 {

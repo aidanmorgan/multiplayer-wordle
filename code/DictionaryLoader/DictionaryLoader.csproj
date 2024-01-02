@@ -5,6 +5,8 @@
         <TargetFramework>net8.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <AssemblyName>DictionaryLoader</AssemblyName>
+        <RootNamespace>DictionaryLoader</RootNamespace>
     </PropertyGroup>
 
     <ItemGroup>
@@ -13,6 +15,7 @@
 
     <ItemGroup>
       <PackageReference Include="AWSSDK.DynamoDBv2" Version="3.7.300.28" />
+      <PackageReference Include="Z.EntityFramework.Extensions.EFCore" Version="8.101.1.3" />
     </ItemGroup>
 
     <ItemGroup>
@@ -44,6 +47,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\Wordle.Common\Wordle.Common.csproj" />
+      <ProjectReference Include="..\Wordle.Dictionary.EfCore\Wordle.Dictionary.EfCore.csproj" />
     </ItemGroup>
 
 </Project>

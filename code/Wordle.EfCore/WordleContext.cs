@@ -1,7 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Wordle.Model;
 
-namespace Wordle.EntityFramework;
+namespace Wordle.EfCore;
 
 public class WordleContext : DbContext
 {

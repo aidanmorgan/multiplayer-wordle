@@ -20,16 +20,18 @@ using Wordle.Kafka.Consumer;
 using Wordle.Kafka.Publisher;
 using Wordle.Clock;
 using Wordle.Dictionary;
-using Wordle.EntityFramework;
+using Wordle.Dictionary.EfCore;
+using Wordle.EfCore;
 using Wordle.Kafka.Common;
 using Wordle.Model;
 using Wordle.Persistence;
 using Wordle.Persistence.Dynamo;
-using Wordle.Persistence.EntityFramework;
+using Wordle.Persistence.EfCore;
 using Wordle.Redis.Common;
 using Wordle.Redis.Consumer;
 using Wordle.Redis.Publisher;
 using Wordle.Render;
+using EfMigrator = Wordle.EfCore.EfMigrator;
 
 namespace Wordle.Apps.Common;
 
@@ -125,7 +127,7 @@ public class AutofacConfigurationBuilder
     {
         MediatrAssemblies.Add(typeof(Wordle.QueryHandlers.EntityFramework.Usings).Assembly);
 
-        _builder.RegisterType<EfMigrator>()
+        _builder.RegisterType<Wordle.EfCore.EfMigrator>()
             .As<IStartable>()
             .SingleInstance();
         
@@ -155,6 +157,20 @@ public class AutofacConfigurationBuilder
         _builder.RegisterType<DynamoDbWordleDictionaryService>()
             .As<IWordleDictionaryService>()
             .SingleInstance();
+
+        return this;
+    }
+
+    public AutofacConfigurationBuilder AddPostgresDictionary()
+    {
+        _builder.RegisterType<Wordle.Dictionary.EfCore.EfMigrator>()
+            .As<IStartable>()
+            .SingleInstance();
+        
+        _builder
+            .RegisterType<DictionaryContext>()
+            .As<DictionaryContext>()
+            .WithParameter(new PositionalParameter(0, EnvironmentVariables.PostgresConnectionString));
 
         return this;
     }

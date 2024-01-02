@@ -1,19 +1,14 @@
-﻿using Amazon.DynamoDBv2.DocumentModel;
-using Wordle.Dictionary;
+﻿
+using Microsoft.EntityFrameworkCore;
 using Wordle.Model;
 
-namespace Wordle.Aws.DictionaryImpl;
+namespace Wordle.Dictionary.EfCore;
 
-public class DynamoDbWordleDictionaryService : IWordleDictionaryService
+public class EfCoreDictionaryService : IWordleDictionaryService
 {
-    private static readonly List<DictionaryDetail> _details = new List<DictionaryDetail>();
+    private static readonly List<DictionaryDetail> Details = new List<DictionaryDetail>();
 
-    private static string MakeKey(string dictionary, int count)
-    {
-        return $"{dictionary}#{count}";
-    }
-
-    static DynamoDbWordleDictionaryService()
+    static EfCoreDictionaryService()
     {
         var collection = new List<DictionaryDetail>
         {
@@ -96,18 +91,14 @@ public class DynamoDbWordleDictionaryService : IWordleDictionaryService
             new DictionaryDetail() {DictionaryName = "french", RowCount = 1, WordLength = 23},
             new DictionaryDetail() {DictionaryName = "dutch", RowCount = 1, WordLength = 24}
         };
-
-        _details = collection.OrderBy(x => x.DictionaryName).ThenBy(x => x.WordLength).ToList();
     }
 
-    private readonly DynamoDictionaryConfiguration _dynamo;
-    private readonly Random _random;
+    private readonly Random _random = new Random();
+    private readonly DictionaryContext _context;
 
-
-    public DynamoDbWordleDictionaryService(DynamoDictionaryConfiguration dynamo)
+    public EfCoreDictionaryService(DictionaryContext context)
     {
-        _dynamo = dynamo;
-        _random = new Random();
+        _context = context;
     }
 
     public Task<string> RandomWord(Options opts)
@@ -115,62 +106,26 @@ public class DynamoDbWordleDictionaryService : IWordleDictionaryService
         return RandomWord(opts.DictionaryName, opts.WordLength);
     }
 
-    public async Task<string> RandomWord(string dict, int numLetters)
+    public async Task<string> RandomWord(string dictionary, int numLetters)
     {
-        var entry = GetEntry(dict, numLetters);
+        var entry = await GetDictionary(dictionary, numLetters);
+        var rowNum = _random.Next(0, entry.RowCount);
 
-        if (entry != null)
-        {
-            var table = _dynamo.GetTable();
+        var word = _context.Words
+            .FromSql($"SELECT * FROM words  WHERE language = {dictionary} AND wordlength = {numLetters} OFFSET {rowNum} LIMIT 1")
+            .FirstOrDefault();
 
-            int index = _random.Next(0, entry.RowCount);
-
-            var result = await table.Query(new QueryOperationConfig()
-            {
-                Limit = 1,
-                KeyExpression = new Expression()
-                {
-                    ExpressionStatement = "pk = :pk and sk = :sk",
-                    ExpressionAttributeValues = new Dictionary<string, DynamoDBEntry>()
-                    {
-                        {":pk", entry.Key},
-                        {":sk", $"index#{index}" }
-                    }
-                },
-                CollectResults = true,
-                Select = SelectValues.SpecificAttributes,
-                AttributesToGet = new List<string>() {"word"}
-            }).GetNextSetAsync();
-
-            if (result.Count == 0)
-            {
-                throw new DictionaryException($"Could not find a word for {entry.Key}");
-            }
-            else
-            {
-                return result[0]["word"];
-            }
-        }
-        else
-        {
-            throw new DictionaryException($"No dictionary: {dict} with length: {numLetters} known.");
-        }
-    }
-
-    private DictionaryDetail? GetEntry(string dict, int numLetters)
-    {
-        return _details.FirstOrDefault(x =>
-            string.Equals(dict, x.DictionaryName, StringComparison.InvariantCultureIgnoreCase)
-            && x.WordLength == numLetters, null);
+        return word!.Word;
     }
 
     public Task<List<DictionaryDetail>> GetDictionaries()
     {
-        return Task.FromResult(_details);
+        return Task.FromResult(Details);
     }
 
     public Task<DictionaryDetail?> GetDictionary(string dictionary, int numLetters)
     {
-        return Task.FromResult(GetEntry(dictionary, numLetters));
+        return Task.FromResult(
+            Details.FirstOrDefault(x => x.DictionaryName == dictionary && x.WordLength == numLetters));
     }
 }

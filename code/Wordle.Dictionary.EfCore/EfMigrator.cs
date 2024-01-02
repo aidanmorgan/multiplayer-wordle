@@ -1,13 +1,13 @@
 using Autofac;
 using Microsoft.EntityFrameworkCore;
 
-namespace Wordle.EntityFramework;
+namespace Wordle.Dictionary.EfCore;
 
 public class EfMigrator : IStartable
 {
-    private WordleContext _context;
+    private DictionaryContext _context;
 
-    public EfMigrator(WordleContext context)
+    public EfMigrator(DictionaryContext context)
     {
         _context = context;
     }

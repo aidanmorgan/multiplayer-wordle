@@ -1,6 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Wordle.EntityFramework;
+using Wordle.EfCore;
 using Wordle.Model;
 using Wordle.Queries;
 

@@ -8,7 +8,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wordle.Commands", "Wordle.C
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wordle.CommandHandlers", "Wordle.CommandHandlers\Wordle.CommandHandlers.csproj", "{D4EF2B48-8234-49D3-A3E3-282CECFED747}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wordle.QueryHandlers.Dynamo", "Wordle.QueryHandlers.Dynamo\Wordle.QueryHandlers.Dynamo.csproj", "{323C95E4-3D65-4C8D-A99A-3BEEA4F435B5}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wordle.QueryHandlers.DynamoDb", "Wordle.QueryHandlers.DynamoDb\Wordle.QueryHandlers.DynamoDb.csproj", "{323C95E4-3D65-4C8D-A99A-3BEEA4F435B5}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wordle.Events", "Wordle.Events\Wordle.Events.csproj", "{CBB973F1-4BD6-4651-8889-8172F36FA9E6}"
 EndProject
@@ -16,19 +16,17 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wordle.Clock", "Wordle.Cloc
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wordle.Persistence", "Wordle.Persistence\Wordle.Persistence.csproj", "{29F7ADE8-EB7A-4104-A164-9F6CA6B0A685}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wordle.Persistence.Dynamo", "Wordle.Persistence.Dynamo\Wordle.Persistence.Dynamo.csproj", "{30D56362-693F-4FB3-A651-EDBA59473481}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wordle.Persistence.DynamoDb", "Wordle.Persistence.DynamoDb\Wordle.Persistence.DynamoDb.csproj", "{30D56362-693F-4FB3-A651-EDBA59473481}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wordle.Common", "Wordle.Common\Wordle.Common.csproj", "{E8BF2CC3-FA4F-41DC-BC08-A8A41A50FF80}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wordle.Render", "Wordle.Render\Wordle.Render.csproj", "{A1DAD6E1-990B-4697-9804-EED5006700FC}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "twitch", "twitch", "{A30861CF-A369-4E67-87F1-20D08B1349A0}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wordle.Dictionary", "Wordle.Dictionary\Wordle.Dictionary.csproj", "{CD2DE0AA-E8F1-4B4E-8F46-3420637D75CF}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{96E0942B-FA71-4DA8-AC32-3A94F7A981A5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DynamoDictionaryLoader", "DynamoDictionaryLoader\DynamoDictionaryLoader.csproj", "{9A480E56-5E9F-4CA8-AA12-F70DCA1FDF86}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DictionaryLoader", "DictionaryLoader\DictionaryLoader.csproj", "{9A480E56-5E9F-4CA8-AA12-F70DCA1FDF86}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{82FEBA6D-CE3F-4F85-8CAC-0D98EEC12404}"
 EndProject
@@ -48,7 +46,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wordle.UnitTests", "Wordle.
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "web", "web", "{634D6CA1-F09F-4807-9E6D-0B751210DC06}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wordle.Aws.DictionaryImpl", "Wordle.Aws.DictionaryImpl\Wordle.Aws.DictionaryImpl.csproj", "{230DF340-8980-4C94-88AB-9020C1B470FE}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wordle.Dictionary.DynamoDb", "Wordle.Dictionary.DynamoDb\Wordle.Dictionary.DynamoDb.csproj", "{230DF340-8980-4C94-88AB-9020C1B470FE}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wordle.Apps.BoardGenerator", "Wordle.Apps.BoardGenerator\Wordle.Apps.BoardGenerator.csproj", "{F1E2A2DD-6916-4B33-B4A9-F332BB791BF4}"
 EndProject
@@ -76,11 +74,15 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wordle.Redis.Publisher", "W
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wordle.Redis.Common", "Wordle.Redis.Common\Wordle.Redis.Common.csproj", "{F3ECB4B8-3DAC-4AA9-A631-6E3B4872D69D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wordle.Persistence.EntityFramework", "Wordle.Persistence.EntityFramework\Wordle.Persistence.EntityFramework.csproj", "{E80CF751-C663-4D8C-B6D0-09E1D1F339C2}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wordle.Persistence.EfCore", "Wordle.Persistence.EfCore\Wordle.Persistence.EfCore.csproj", "{E80CF751-C663-4D8C-B6D0-09E1D1F339C2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wordle.QueryHandlers.EntityFramework", "Wordle.QueryHandlers.EntityFramework\Wordle.QueryHandlers.EntityFramework.csproj", "{FEAE4254-80C9-4C6A-AE43-663262EF6D63}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wordle.QueryHandlers.EfCore", "Wordle.QueryHandlers.EfCore\Wordle.QueryHandlers.EfCore.csproj", "{FEAE4254-80C9-4C6A-AE43-663262EF6D63}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wordle.EntityFramework", "Wordle.EntityFramework\Wordle.EntityFramework.csproj", "{5D20167B-C0C2-431E-8195-CB4C1077C250}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wordle.EfCore", "Wordle.EfCore\Wordle.EfCore.csproj", "{5D20167B-C0C2-431E-8195-CB4C1077C250}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "efcore", "efcore", "{1F4561FB-12C4-493A-AF20-7C2B0D5F1CAF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wordle.Dictionary.EfCore", "Wordle.Dictionary.EfCore\Wordle.Dictionary.EfCore.csproj", "{1197A9B5-2EED-4CDD-AF7C-7B5B0A682CDE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -220,6 +222,10 @@ Global
 		{5D20167B-C0C2-431E-8195-CB4C1077C250}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5D20167B-C0C2-431E-8195-CB4C1077C250}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5D20167B-C0C2-431E-8195-CB4C1077C250}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1197A9B5-2EED-4CDD-AF7C-7B5B0A682CDE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1197A9B5-2EED-4CDD-AF7C-7B5B0A682CDE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1197A9B5-2EED-4CDD-AF7C-7B5B0A682CDE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1197A9B5-2EED-4CDD-AF7C-7B5B0A682CDE}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{9A480E56-5E9F-4CA8-AA12-F70DCA1FDF86} = {96E0942B-FA71-4DA8-AC32-3A94F7A981A5}
@@ -242,5 +248,11 @@ Global
 		{BFB880E1-CE33-4E31-A286-D8F9ABB8E9F0} = {438956A6-0028-458F-9EDA-65A23AA386A0}
 		{5E74A38F-DA20-4C3C-9716-9E62C0160D48} = {438956A6-0028-458F-9EDA-65A23AA386A0}
 		{F3ECB4B8-3DAC-4AA9-A631-6E3B4872D69D} = {438956A6-0028-458F-9EDA-65A23AA386A0}
+		{30D56362-693F-4FB3-A651-EDBA59473481} = {78D38416-1AB5-4B06-9CEF-0F314851E4DE}
+		{323C95E4-3D65-4C8D-A99A-3BEEA4F435B5} = {78D38416-1AB5-4B06-9CEF-0F314851E4DE}
+		{5D20167B-C0C2-431E-8195-CB4C1077C250} = {1F4561FB-12C4-493A-AF20-7C2B0D5F1CAF}
+		{E80CF751-C663-4D8C-B6D0-09E1D1F339C2} = {1F4561FB-12C4-493A-AF20-7C2B0D5F1CAF}
+		{FEAE4254-80C9-4C6A-AE43-663262EF6D63} = {1F4561FB-12C4-493A-AF20-7C2B0D5F1CAF}
+		{1197A9B5-2EED-4CDD-AF7C-7B5B0A682CDE} = {1F4561FB-12C4-493A-AF20-7C2B0D5F1CAF}
 	EndGlobalSection
 EndGlobal

@@ -1,6 +1,6 @@
-﻿using Wordle.EntityFramework;
+﻿using Wordle.EfCore;
 
-namespace Wordle.Persistence.EntityFramework;
+namespace Wordle.Persistence.EfCore;
 
 public class EfUnitOfWorkFactory : IGameUnitOfWorkFactory
 {
