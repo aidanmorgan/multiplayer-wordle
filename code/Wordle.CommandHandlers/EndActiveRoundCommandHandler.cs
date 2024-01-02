@@ -1,8 +1,8 @@
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Wordle.Clock;
 using Wordle.Commands;
 using Wordle.Events;
-using Wordle.Logger;
 using Wordle.Model;
 using Wordle.Persistence;
 using Wordle.Queries;
@@ -16,9 +16,9 @@ public class EndActiveRoundCommandHandler : IRequestHandler<EndActiveRoundComman
     private readonly IGameUnitOfWorkFactory _uowFactory;
     private readonly IMediator _mediator;
     private readonly IGuessDecimator _guessDecimator;
-    private readonly ILogger _logger;
+    private readonly ILogger<EndActiveRoundCommandHandler> _logger;
 
-    public EndActiveRoundCommandHandler(IClock clock, IGameUnitOfWorkFactory uowFactory, IGuessDecimator decimator, ILogger logger, IMediator mediator)
+    public EndActiveRoundCommandHandler(IClock clock, IGameUnitOfWorkFactory uowFactory, IGuessDecimator decimator, ILogger<EndActiveRoundCommandHandler> logger, IMediator mediator)
     {
         _clock = clock;
         _logger = logger;
@@ -51,7 +51,27 @@ public class EndActiveRoundCommandHandler : IRequestHandler<EndActiveRoundComman
                 $"Cannot end active Round for Session {request.SessionId}, there is no round end time set.");
         }
 
-        var round = rounds?.FirstOrDefault(x => x.Id == session.ActiveRoundId);
+        if (request.RoundId != null && session.ActiveRoundId != request.RoundId)
+        {
+        }
+
+        Round? round = null;
+
+        if (request.RoundId != null)
+        {
+            if (session.ActiveRoundId != request.RoundId)
+            {
+                throw new CommandException(
+                    $"Cannot end active Round for Session {request.SessionId}, the expected Round {request.RoundId} is not the active round.");
+            }
+
+            round = res.Rounds.FirstOrDefault(x => x.Id == request.RoundId);
+        }
+        else
+        {
+            round = rounds?.FirstOrDefault(x => x.Id == session.ActiveRoundId);
+        } 
+        
         if (round == null)
         {
             throw new CommandException(
@@ -71,7 +91,6 @@ public class EndActiveRoundCommandHandler : IRequestHandler<EndActiveRoundComman
         {
             if (session.ActiveRoundEnd.Value.IsAfter(_clock.UtcNow()))
             {
-                _logger.Log($"Attempting to end round {session.ActiveRoundId} but it is in the future.");
                 throw new CommandException($"Cannot end active Round{session.ActiveRoundId} for Session {session.Id} as it is in the future.");
             }
 
@@ -92,7 +111,7 @@ public class EndActiveRoundCommandHandler : IRequestHandler<EndActiveRoundComman
                     
                     await _mediator.Publish(new RoundExtended(session.Tenant, session.Id, round.Id, session.ActiveRoundEnd.Value), cancellationToken);
                     
-                    _logger.Log($"Extending Round {round.Id} as the end criteria is unmet. Next check: {session.ActiveRoundEnd}");
+                    _logger.LogInformation("Extending Round {RoundId} as the end criteria is unmet. Next check: {SessionActiveRoundEnd}", round.Id, session.ActiveRoundEnd);
                     return Unit.Value;
                 }
             }
@@ -115,7 +134,7 @@ public class EndActiveRoundCommandHandler : IRequestHandler<EndActiveRoundComman
             await _mediator.Publish(new RoundTerminated(session.Tenant, session.Id, round.Id), cancellationToken);
             await _mediator.Publish(new SessionTerminated(session.Tenant, session.Id), cancellationToken);
 
-            _logger.Log($"TERMINATING Round {round.Id} and Session {session.Id}");
+            _logger.LogInformation("TERMINATING Round {RoundId} and Session {SessionId}", round.Id, session.Id);
             
             return Unit.Value;
         }
@@ -126,7 +145,7 @@ public class EndActiveRoundCommandHandler : IRequestHandler<EndActiveRoundComman
         await uow.SaveAsync();
         await _mediator.Publish(new RoundEnded(session.Tenant, session.Id, round.Id), cancellationToken);
         
-        _logger.Log($"Ending Round {round.Id}, selected word was {word}.");
+        _logger.LogInformation("Ending Round {RoundId}, selected word was {Word}.", round.Id, word);
 
         return Unit.Value;
     }

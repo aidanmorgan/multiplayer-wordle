@@ -13,6 +13,6 @@ public class EfUnitOfWorkFactory : IGameUnitOfWorkFactory
 
     public IGameUnitOfWork Create()
     {
-        return new EfGameUnitOfWork(new WordleContext());
+        return new EfGameUnitOfWork(new WordleContext(_connectionString));
     }
 }

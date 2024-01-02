@@ -15,12 +15,14 @@ public class GameController : ControllerBase
     private readonly IMediator _mediator;
     private readonly IClock _clock;
     private readonly IWordleDictionaryService _dictionary;
+    private readonly ILogger<GameController> _logger;
 
-    public GameController(IMediator mediator,  IClock clock, IWordleDictionaryService dictionary)
+    public GameController(IMediator mediator,  IClock clock, IWordleDictionaryService dictionary, ILogger<GameController> logger)
     {
         _mediator = mediator;
         _clock = clock;
         _dictionary = dictionary;
+        _logger = logger;
     }
     
     [EnableRateLimiting("newgame-limit")]
@@ -32,19 +34,28 @@ public class GameController : ControllerBase
         var existingSession = await _mediator.Send(new GetActiveSessionForTenantQuery("web", tenantId));
         if (existingSession.HasValue)
         {
+            _logger.LogError("Could not find Session for Tenant web${TenantId}", tenantId);
             return new BadRequestResult();
         }
 
         var options = (await _mediator.Send(new GetOptionsForTenantQuery("web", tenantId))) ?? new Options();
 
-        var newSession =
-            await _mediator.Send(new CreateNewSessionCommand(
-                "web", 
-                tenantId, 
-                await _dictionary.RandomWord(options),
-                options));
+        try
+        {
+            var newSession =
+                await _mediator.Send(new CreateNewSessionCommand(
+                    "web",
+                    tenantId,
+                    await _dictionary.RandomWord(options),
+                    options));
 
-        return new CreatedResult();
+            return new CreatedResult();
+        }
+        catch (CommandException x)
+        {
+            _logger.LogError(x, "Could not create new Session for Tenant web#{TenantId}", tenantId);
+            return new BadRequestResult();
+        }
     }
 
     [EnableRateLimiting("guess-limit")]
@@ -57,6 +68,7 @@ public class GameController : ControllerBase
         var session = await _mediator.Send(new GetActiveSessionForTenantQuery("web", tenantId));
         if (!session.HasValue)
         {
+            _logger.LogError("Could not find Session with Tenant {TenantId}", tenantId);
             return new NotFoundResult();
         }
 
@@ -65,8 +77,9 @@ public class GameController : ControllerBase
             await _mediator.Send(new AddGuessToRoundCommand(session.Value, g.Username, g.Word, _clock.UtcNow()));
             return new CreatedResult();
         }
-        catch (CommandException)
+        catch (CommandException x)
         {
+            _logger.LogError(x, "Could not add Guess to Session {Session} for Tenant web#{TenantId}", session, tenantId);
             return new BadRequestResult();
         }
     }
@@ -80,6 +93,7 @@ public class GameController : ControllerBase
         var sessionId = await _mediator.Send(new GetActiveSessionForTenantQuery("web", tenantId));
         if (!sessionId.HasValue)
         {
+            _logger.LogError("Could not find Session with Tenant {TenantId}", tenantId);
             return new NotFoundResult();
         }
 
@@ -101,6 +115,7 @@ public class GameController : ControllerBase
         var sessionId = await _mediator.Send(new GetActiveSessionForTenantQuery("web", tenantId));
         if (!sessionId.HasValue)
         {
+            _logger.LogError("Could not find Session with Tenant {TenantId}", tenantId);
             return new NotFoundResult();
         }
 

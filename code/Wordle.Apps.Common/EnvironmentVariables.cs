@@ -38,8 +38,16 @@ public static class EnvironmentVariables
             var lines = File.ReadAllLines(file);
             
             lines
-                .Where(x => !string.IsNullOrEmpty(x) && x.Count(y=>y=='=') == 1 && !x.StartsWith("#"))
-                .Select(x => x.Split("="))
+                .Where(x => !string.IsNullOrEmpty(x) && x.Count(y=>y=='=') > 0 && !x.StartsWith("#"))
+                .Select(x =>
+                {
+                    var index = x.IndexOf("=", StringComparison.Ordinal);
+                    return new string[]
+                    {
+                        x.Substring(0, index),
+                        x.Substring(index + 1)
+                    };
+                })
                 .ToList()
                 .ForEach(x =>
                 {
@@ -76,6 +84,7 @@ public static class EnvironmentVariables
     public static string KafkaEventTopic => Environment.GetEnvironmentVariable("KAFKA_EVENT_TOPIC");
     public static string RedisServer => Environment.GetEnvironmentVariable("REDIS_SERVER");
     public static string RedisTopic => Environment.GetEnvironmentVariable("REDIS_TOPIC");
+    public static string PostgresConnectionString => Environment.GetEnvironmentVariable("POSTGRES_CONNECTIONSTRING");
 
     public static void SetDefault(string key, string value)
     {

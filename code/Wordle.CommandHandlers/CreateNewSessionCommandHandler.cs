@@ -1,21 +1,14 @@
 ﻿using MediatR;
+using Microsoft.Extensions.Logging;
 using Wordle.Clock;
 using Wordle.Commands;
 using Wordle.Dictionary;
 using Wordle.Events;
-using Wordle.Logger;
 using Wordle.Model;
 using Wordle.Persistence;
-using Wordle.Persistence.Dynamo;
 using Wordle.Queries;
 
 namespace Wordle.CommandHandlers;
-
-public struct Container
-{
-    public Tenant Tenant { get; set; }
-    public Options Options { get; set; }
-}
 
 public class CreateNewSessionCommandHandler : IRequestHandler<CreateNewSessionCommand, Guid>
 {
@@ -23,10 +16,10 @@ public class CreateNewSessionCommandHandler : IRequestHandler<CreateNewSessionCo
     private readonly IGameUnitOfWorkFactory _unitOfWork;
     private readonly IMediator _mediator;
     private readonly IWordleDictionaryService _dictionaryService;
-    private readonly ILogger _logger;
+    private readonly ILogger<CreateNewSessionCommandHandler> _logger;
 
 
-    public CreateNewSessionCommandHandler(ILogger logger, IClock clock, IGameUnitOfWorkFactory unitOfWork, IMediator mediator, IWordleDictionaryService dictSvc)
+    public CreateNewSessionCommandHandler(ILogger<CreateNewSessionCommandHandler> logger, IClock clock, IGameUnitOfWorkFactory unitOfWork, IMediator mediator, IWordleDictionaryService dictSvc)
     {
         _logger = logger;
         _clock = clock;
@@ -40,7 +33,7 @@ public class CreateNewSessionCommandHandler : IRequestHandler<CreateNewSessionCo
         var sessionId = Ulid.NewUlid().ToGuid();
         var roundId = Ulid.NewUlid().ToGuid();
 
-        var tenantId = Tenant.CreateTenantId(request.TenantType, request.TenantName);
+        var tenantId = $"{request.TenantType}#{request.TenantName}";
         var options = await _mediator.Send(new GetOptionsForTenantQuery(request.TenantType, request.TenantName), cancellationToken);
 
         var uow = _unitOfWork.Create();
@@ -94,10 +87,10 @@ public class CreateNewSessionCommandHandler : IRequestHandler<CreateNewSessionCo
         await uow.Options.AddAsync(session, sessionOptions);
         await uow.SaveAsync();
         
-        _logger.Log($"Created new Session: {sessionId} with initial Round: {roundId}");
+        _logger.LogInformation("Created new Session: {SessionId} with initial Round: {RoundId}", sessionId, roundId);
         
-        await _mediator.Publish(new NewSessionStarted(request.TenantName, sessionId), cancellationToken);
-        await _mediator.Publish(new NewRoundStarted(request.TenantName, sessionId, roundId, session.ActiveRoundEnd.Value), cancellationToken);
+        await _mediator.Publish(new NewSessionStarted(session.Tenant, sessionId), cancellationToken);
+        await _mediator.Publish(new NewRoundStarted(session.Tenant, sessionId, roundId, session.ActiveRoundEnd.Value), cancellationToken);
         
         return sessionId;
     }

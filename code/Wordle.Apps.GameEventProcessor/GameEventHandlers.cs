@@ -1,11 +1,11 @@
 using Amazon.SQS.Model;
 using MediatR;
 using Newtonsoft.Json;
+using Microsoft.Extensions.Logging;
 using Wordle.Apps.Common;
 using Wordle.Clock;
 using Wordle.Commands;
 using Wordle.Events;
-using Wordle.Logger;
 using Wordle.Model;
 using Wordle.Queries;
 
@@ -18,14 +18,13 @@ public class GameEventHandlers :
     INotificationHandler<RoundExtended>
 {
     private readonly IMediator _mediator;
-    private readonly ILogger _logger;
     private readonly IClock _clock;
     private readonly IDelayProcessingService _delayProcessingService;
+    private readonly ILogger<GameEventHandlers> _logger;
 
     public GameEventHandlers(IMediator mediator, 
         IDelayProcessingService delayProcessingService, 
-        ILogger logger, 
-        IClock clock)
+        IClock clock, ILogger<GameEventHandlers> logger)
     {
         _mediator = mediator;
         _logger = logger;
@@ -43,7 +42,7 @@ public class GameEventHandlers :
         var q = await _mediator.Send(new GetSessionByIdQuery(detail.SessionId));
         if (q == null)
         {
-            _logger.Log($"Could not load Session with id {detail.SessionId}.");
+            _logger.LogError("Could not load Session with id {SessionId}", detail.SessionId);
             return;
         }
 
@@ -51,7 +50,7 @@ public class GameEventHandlers :
 
         if (session.State != SessionState.ACTIVE)
         {
-            _logger.Log($"Could not update Session with id {detail.SessionId}, it is not ACTIVE.");
+            _logger.LogError("Could not update Session with id {SessionId}, it is not ACTIVE", detail.SessionId);
             return;
         }
 
@@ -61,14 +60,13 @@ public class GameEventHandlers :
         var lastRound = rounds.FirstOrDefault(x => x.Id == detail.RoundId);
         if (lastRound == null)
         {
-            _logger.Log(
-                $"Could not find Round with id {detail.RoundId} in the rounds for Session {detail.SessionId}");
+            _logger.LogError("Could not find Round with id {RoundId} in the rounds for Session {SessionId}", detail.RoundId, detail.SessionId);
             return;
         }
 
         if (string.Equals(lastRound.Guess, session.Word, StringComparison.InvariantCultureIgnoreCase))
         {
-            _logger.Log($"Correct answer found, ending Session {detail.SessionId} with SUCCESS");
+            _logger.LogInformation("Correct answer found, ending Session {SessionId} with SUCCESS", detail.SessionId);
             await _mediator.Send(new EndSessionCommand(detail.SessionId, session.Word, true, false));
             return;
         }
@@ -77,12 +75,12 @@ public class GameEventHandlers :
             if (rounds.Count < options.NumberOfRounds)
             {
                 var roundId = await _mediator.Send(new CreateNewRoundCommand(detail.SessionId));
-                _logger.Log($"Created new round {roundId} for Session {detail.SessionId}");
+                _logger.LogInformation("Created new round {RoundId} for Session {SessionId}", roundId, detail.SessionId);
                 return;
             }
             else
             {
-                _logger.Log($"Incorrect final guess, ending Session {detail.SessionId}.");
+                _logger.LogInformation("Incorrect final guess, ending Session {SessionId}", detail.SessionId);
                 await _mediator.Send(new EndSessionCommand(detail.SessionId, session.Word, false, true));
             }
         }

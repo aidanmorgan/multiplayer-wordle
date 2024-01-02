@@ -1,9 +1,9 @@
 using Autofac;
 using Newtonsoft.Json;
+using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 using Wordle.Clock;
 using Wordle.Events;
-using Wordle.Logger;
 using Wordle.Redis.Common;
 
 namespace Wordle.Redis.Publisher;
@@ -17,12 +17,12 @@ public class DefaultRedisPublisher : IRedisPublisher
 {
     private readonly RedisSettings _settings;
     private readonly IClock _clock;
-    private readonly ILogger _logger;
+    private readonly ILogger<DefaultRedisPublisher> _logger;
 
     private IDatabase _database;
     private List<NameValueEntry> _baseKeys;
 
-    public DefaultRedisPublisher(RedisSettings settings, IClock clock, ILogger logger)
+    public DefaultRedisPublisher(RedisSettings settings, IClock clock, ILogger<DefaultRedisPublisher> logger)
     {
         _settings = settings;
         _clock = clock;
@@ -66,6 +66,6 @@ public class DefaultRedisPublisher : IRedisPublisher
             nameValueEntries.ToArray(),
             "*");
         
-        _logger.Log($"Publishing {JsonConvert.SerializeObject(ev)} from {ev.EventSourceType}#{ev.EventSourceId}#{result}");
+        _logger.LogInformation("Publishing {SerializeObject} from {EvEventSourceType}#{EvEventSourceId}#{Result}", JsonConvert.SerializeObject(ev), ev.EventSourceType, ev.EventSourceId, result);
     }
 }

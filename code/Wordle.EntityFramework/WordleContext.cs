@@ -25,12 +25,14 @@ public class WordleContext : DbContext
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         optionsBuilder
-            .UseNpgsql(@"Host=myserver;Username=mylogin;Password=mypass;Database=mydatabase")
+            .UseNpgsql(_connectionString)
             .UseLowerCaseNamingConvention();
         
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.HasPostgresEnum<RoundState>();
+        modelBuilder.HasPostgresEnum<SessionState>();
     }
 }

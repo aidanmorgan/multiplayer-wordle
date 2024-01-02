@@ -8,7 +8,6 @@ using Wordle.Aws.Common;
 using Wordle.Kafka.Common;
 using Wordle.Clock;
 using Wordle.Events;
-using Wordle.Logger;
 
 namespace Wordle.Kafka.Publisher;
 

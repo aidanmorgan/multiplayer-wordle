@@ -1,8 +1,8 @@
 using Amazon.S3;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Wordle.Apps.Common;
 using Wordle.Events;
-using Wordle.Logger;
 using Wordle.Queries;
 using Wordle.Render;
 
@@ -11,11 +11,11 @@ namespace Wordle.Apps.BoardGenerator;
 public class BoardGeneratorHandlers : INotificationHandler<RoundEnded>
 {
     private readonly IMediator _mediator;
-    private readonly ILogger _logger;
     private readonly IAmazonS3 _s3;
     private readonly IRenderer _renderer;
+    private readonly ILogger<BoardGeneratorHandlers> _logger;
 
-    public BoardGeneratorHandlers(IMediator mediator, IRenderer renderer, IAmazonS3 s3, ILogger logger)
+    public BoardGeneratorHandlers(IMediator mediator, IRenderer renderer, IAmazonS3 s3, ILogger<BoardGeneratorHandlers> logger)
     {
         _mediator = mediator;
         _logger = logger;
@@ -28,14 +28,14 @@ public class BoardGeneratorHandlers : INotificationHandler<RoundEnded>
         var session = await _mediator.Send(new GetSessionByIdQuery(ev.SessionId), token);
         if (session == null)
         {
-            _logger.Log($"Attempting to generate for Session {ev.SessionId}, but could not load.");
+            _logger.LogError("Attempting to generate for Session {SessionId}, but could not load", ev.SessionId);
             return;
         }
                             
         var round = session?.Rounds.FirstOrDefault(x => x.Id == ev.RoundId);
         if (round == null)
         {
-            _logger.Log($"Attempting to generate for Session {ev.SessionId} and Round {ev.RoundId} but Round could not be found.");
+            _logger.LogError("Attempting to generate for Session {SessionId} and Round {RoundId} but Round could not be found", ev.SessionId, ev.RoundId);
             return;
         }
 
@@ -46,7 +46,7 @@ public class BoardGeneratorHandlers : INotificationHandler<RoundEnded>
                             
         await _s3.UploadObjectFromStreamAsync(EnvironmentVariables.BoardBucketName, filename, stream, new Dictionary<string, object>(), token);
                             
-        _logger.Log($"Uploaded board image: {filename}");
+        _logger.LogInformation("Uploaded board image: {ImageFilename}", filename);
         
     } 
 }

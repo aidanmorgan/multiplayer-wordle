@@ -8,6 +8,11 @@ using Autofac;
 using MediatR.Extensions.Autofac.DependencyInjection;
 using MediatR.Extensions.Autofac.DependencyInjection.Builder;
 using MediatR.NotificationPublishers;
+using Microsoft.Extensions.Logging;
+using Serilog;
+using Serilog.Core;
+using Serilog.Extensions.Autofac.DependencyInjection;
+using Serilog.Sinks.SystemConsole.Themes;
 using Wordle.Aws.Common;
 using Wordle.Aws.DictionaryImpl;
 using Wordle.Aws.EventBridge;
@@ -15,11 +20,12 @@ using Wordle.Kafka.Consumer;
 using Wordle.Kafka.Publisher;
 using Wordle.Clock;
 using Wordle.Dictionary;
+using Wordle.EntityFramework;
 using Wordle.Kafka.Common;
-using Wordle.Logger;
 using Wordle.Model;
 using Wordle.Persistence;
 using Wordle.Persistence.Dynamo;
+using Wordle.Persistence.EntityFramework;
 using Wordle.Redis.Common;
 using Wordle.Redis.Consumer;
 using Wordle.Redis.Publisher;
@@ -35,7 +41,6 @@ public class AutofacConfigurationBuilder
     [
         // we assume these are always required as we will be generating
         typeof(Wordle.CommandHandlers.Usings).Assembly,
-        typeof(Wordle.QueryHandlers.Dynamo.Usings).Assembly
     ];
     
     private static readonly Action<ContainerBuilder> AddDynamoDbClient = callOnlyOnce((b) =>
@@ -65,7 +70,10 @@ public class AutofacConfigurationBuilder
 
     private static readonly Action<ContainerBuilder> InitialiseDefaultsCallback = callOnlyOnce((b) =>
     {
-        b.RegisterInstance(new ConsoleLogger()).As<Wordle.Logger.ILogger>().SingleInstance();
+        b.RegisterSerilog(new LoggerConfiguration()
+            .WriteTo
+            .Console(theme: AnsiConsoleTheme.Grayscale));
+        
         b.RegisterType<Clock.Clock>().As<IClock>().SingleInstance();
         b.RegisterType<GuessDecimator>().As<IGuessDecimator>().SingleInstance();
 
@@ -95,9 +103,11 @@ public class AutofacConfigurationBuilder
         InitialiseDefaultsCallback(_builder);
     }
     
-    public AutofacConfigurationBuilder AddGamePersistence()
+    public AutofacConfigurationBuilder AddDynamoPersistence()
     {
         AddDynamoDbClient(_builder);
+        
+        MediatrAssemblies.Add(typeof(Wordle.QueryHandlers.Dynamo.Usings).Assembly);
         
         _builder.RegisterType<DynamoGameConfiguration>()
             .As<DynamoGameConfiguration>()
@@ -111,7 +121,28 @@ public class AutofacConfigurationBuilder
         return this;
     }
 
-    public AutofacConfigurationBuilder AddDictionary()
+    public AutofacConfigurationBuilder AddPostgresPersistence()
+    {
+        MediatrAssemblies.Add(typeof(Wordle.QueryHandlers.EntityFramework.Usings).Assembly);
+
+        _builder.RegisterType<EfMigrator>()
+            .As<IStartable>()
+            .SingleInstance();
+        
+        _builder
+            .RegisterType<WordleContext>()
+            .As<WordleContext>()
+            .WithParameter(new PositionalParameter(0, EnvironmentVariables.PostgresConnectionString));
+
+        _builder.RegisterType<EfUnitOfWorkFactory>()
+            .As<IGameUnitOfWorkFactory>()
+            .WithParameter(new PositionalParameter(0, EnvironmentVariables.PostgresConnectionString))
+            .SingleInstance();
+
+        return this;
+    }
+
+    public AutofacConfigurationBuilder AddDynamoDictionary()
     {
         AddDynamoDbClient(_builder);
 

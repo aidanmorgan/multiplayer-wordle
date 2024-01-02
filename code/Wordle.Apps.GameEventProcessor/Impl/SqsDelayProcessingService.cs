@@ -2,13 +2,14 @@ using Amazon.SQS;
 using Amazon.SQS.Model;
 using MediatR;
 using Newtonsoft.Json;
+using Microsoft.Extensions.Logging;
 using Wordle.Apps.Common;
 using Wordle.Clock;
-using Wordle.Logger;
+using Wordle.Commands;
 
 namespace Wordle.Apps.GameEventProcessor.Impl;
 
-public class SqsDelayProcessingService : AbstractDelayProcessingService
+public class SqsDelayProcessingService : IDelayProcessingService
 {
     // the maximum number of messages to read from the queue at once
     private const int MAX_TIMEOUT_MESSAGES = 5;
@@ -20,17 +21,20 @@ public class SqsDelayProcessingService : AbstractDelayProcessingService
     // visible to other readers
     private const int VISIBILITY_TIMEOUT_SECONDS = 5;
 
-    
+    private readonly IMediator _mediator;
     private readonly IClock _clock;
     private readonly IAmazonSQS _sqs;
+    private readonly ILogger<SqsDelayProcessingService> _logger;
 
-    public SqsDelayProcessingService(IMediator mediator, IClock clock, IAmazonSQS sqs, ILogger logger) : base(mediator, logger)
+    public SqsDelayProcessingService(IMediator mediator, IClock clock, IAmazonSQS sqs, ILogger<SqsDelayProcessingService> logger)
     {
+        _mediator = mediator;
         _sqs = sqs;
         _clock = clock;
+        _logger = logger;
     }
 
-    public override async Task ScheduleRoundUpdate(Guid sessionId, Guid roundId, DateTimeOffset executionTime, CancellationToken cancellationToken)
+    public async Task ScheduleRoundUpdate(Guid sessionId, Guid roundId, DateTimeOffset executionTime, CancellationToken cancellationToken)
     {
         try
         {
@@ -46,9 +50,9 @@ public class SqsDelayProcessingService : AbstractDelayProcessingService
         }
     }
 
-    public override async Task RunAsync(CancellationToken token)
+    public async Task RunAsync(CancellationToken token)
     {
-        Logger.Log($"Listening for timeout payloads on {EnvironmentVariables.TimeoutQueueUrl}");
+        _logger.LogInformation("Listening for timeout payloads on {Url}", EnvironmentVariables.TimeoutQueueUrl);
         while (!token.IsCancellationRequested)
         {
             try
@@ -79,14 +83,25 @@ public class SqsDelayProcessingService : AbstractDelayProcessingService
 
                 if (messages.Messages.Count == 0)
                 {
-                    Logger.Log($"No messages received in last {READ_WAIT_TIME_SECONDS} seconds.");
+                    _logger.LogInformation("No messages received in last {WaitTimeSeconds} seconds", READ_WAIT_TIME_SECONDS);
                 }
             }
             catch (Exception x)
             {
-                Logger.Log("exception", $"Exception thrown processing timeouts.");
-                Logger.Log(x.Message);
+                _logger.LogError(x, "Exception thrown processing timeouts");
             }
+        }
+    }
+    
+    public async Task HandleTimeout(TimeoutPayload payload)
+    {
+        try
+        {
+            await _mediator.Send(new EndActiveRoundCommand(payload.SessionId, payload.RoundId));
+        }
+        catch (CommandException x)
+        {
+            _logger.LogError(x, "Attempt to end Round {RoundId} for Session {SessionId} failed", payload.RoundId, payload.SessionId);
         }
     }
 }

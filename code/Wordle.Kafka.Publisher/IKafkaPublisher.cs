@@ -3,10 +3,10 @@ using Confluent.Kafka;
 using Confluent.Kafka.Admin;
 using Newtonsoft.Json;
 using Nito.AsyncEx;
+using Microsoft.Extensions.Logging;
 using Wordle.Clock;
 using Wordle.Events;
 using Wordle.Kafka.Common;
-using Wordle.Logger;
 
 namespace Wordle.Kafka.Publisher;
 
@@ -20,11 +20,11 @@ public class KafkaPublisher : IKafkaPublisher
 {
     private readonly KafkaSettings _settings;
     private readonly IClock _clock;
-    private readonly ILogger _logger;
+    private readonly ILogger<KafkaPublisher> _logger;
 
     private IProducer<Null,string> _producer;
 
-    public KafkaPublisher(KafkaSettings settings, IClock clock, ILogger logger)
+    public KafkaPublisher(KafkaSettings settings, IClock clock, ILogger<KafkaPublisher> logger)
     {
         _settings = settings;
         _clock = clock;
@@ -53,11 +53,11 @@ public class KafkaPublisher : IKafkaPublisher
             }
             catch (CreateTopicsException e)
             {
-                _logger.Log($"An error occured creating topic {e.Results[0].Topic}: {e.Results[0].Error.Reason}");
+                _logger.LogError(e, "An error occured creating topic {Topic}: {ErrorReason}", e.Results[0].Topic, e.Results[0].Error.Reason);
             }
         });
         
-        _logger.Log($"Publishing events to Topic: {_settings.Topic} for bootstrap servers: {_settings.BootstrapServers}");
+        _logger.LogInformation("Publishing events to Topic: {SettingsTopic} for bootstrap servers: {SettingsBootstrapServers}", _settings.Topic, _settings.BootstrapServers);
         
         var config = new ProducerConfig
         {
@@ -97,7 +97,7 @@ public class KafkaPublisher : IKafkaPublisher
             Value = JsonConvert.SerializeObject(ev)
         }, token);
 
-        _logger.Log($"Publishing {JsonConvert.SerializeObject(ev)} from {ev.EventSourceType}#{ev.EventSourceId}");
+        _logger.LogInformation("Publishing {SerializeObject} from {EvEventSourceType}#{EvEventSourceId}", JsonConvert.SerializeObject(ev), ev.EventSourceType, ev.EventSourceId);
     }
 
 }

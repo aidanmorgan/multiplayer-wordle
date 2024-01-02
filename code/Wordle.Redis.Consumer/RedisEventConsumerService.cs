@@ -1,11 +1,10 @@
-﻿using Autofac;
-using MediatR;
+﻿using MediatR;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Nito.AsyncEx;
 using StackExchange.Redis;
 using Wordle.Aws.Common;
 using Wordle.Events;
-using Wordle.Logger;
 using Wordle.Redis.Common;
 
 namespace Wordle.Redis.Consumer;
@@ -29,12 +28,12 @@ public class RedisEventConsumerService : IEventConsumerService
 
     
     private readonly IMediator _mediator;
-    private readonly ILogger _logger;
+    private readonly ILogger<RedisEventConsumerService> _logger;
 
     private IDatabase _database;
     private readonly RedisSettings _settings;
 
-    public RedisEventConsumerService(RedisSettings settings, IMediator mediator, ILogger logger)
+    public RedisEventConsumerService(RedisSettings settings, IMediator mediator, ILogger <RedisEventConsumerService> logger)
     {
         _settings = settings;
         _mediator = mediator;
@@ -43,7 +42,7 @@ public class RedisEventConsumerService : IEventConsumerService
     
     public async Task RunAsync(CancellationToken cts)
     {
-        _logger.Log($"Listening for events via Redis server: {_settings.RedisHost} key: {_settings.RedisTopic}.");
+        _logger.LogInformation("Listening for events via Redis server: {SettingsRedisHost} key: {SettingsRedisTopic}", _settings.RedisHost, _settings.RedisTopic);
         
         while (!cts.IsCancellationRequested)
         {

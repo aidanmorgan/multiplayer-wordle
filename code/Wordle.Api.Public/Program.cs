@@ -1,15 +1,7 @@
-using System.Net;
 using System.Threading.RateLimiting;
-using Autofac;
 using Autofac.Extensions.DependencyInjection;
-using MediatR;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Wordle.Apps.Common;
-using Wordle.Clock;
-using Wordle.Commands;
-using Wordle.Dictionary;
-using Wordle.Model;
 
 namespace Wordle.Api.Public;
 
@@ -24,9 +16,9 @@ public class Program
         builder.Host.UseServiceProviderFactory(new AutofacServiceProviderFactory(x =>
         {
             var conf = new AutofacConfigurationBuilder(x);
-            conf.AddDictionary();
+            conf.AddDynamoDictionary();
             conf.AddRedisEventPublisher(EventSourceType, EnvironmentVariables.InstanceId);
-            conf.AddGamePersistence();
+            conf.AddPostgresPersistence();
             
             conf.InitialiseDefaults();
         }));

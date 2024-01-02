@@ -6,4 +6,10 @@
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
+    <ItemGroup>
+      <ProjectReference Include="..\Wordle.Common\Wordle.Common.csproj" />
+      <ProjectReference Include="..\Wordle.EntityFramework\Wordle.EntityFramework.csproj" />
+      <ProjectReference Include="..\Wordle.Queries\Wordle.Queries.csproj" />
+    </ItemGroup>
+
 </Project>

@@ -73,12 +73,14 @@ public class AddGuessToRoundCommandHandler : IRequestHandler<AddGuessToRoundComm
         bool roundEndUpdated = await UpdateRoundEndForNewGuess(uow, session, options, round);
         
         await uow.SaveAsync();
-        await _mediator.Publish(new GuessAdded(session.Tenant, guessId, round.Id, session.Id), cancellationToken);
-        
+        // broadcast this first before the guess add as it's more important to get out.
         if (roundEndUpdated)
         {
             await _mediator.Publish(new RoundExtended(session.Tenant, session.Id, round.Id, session.ActiveRoundEnd!.Value), cancellationToken);
         }
+        
+        await _mediator.Publish(new GuessAdded(session.Tenant, guessId, round.Id, session.Id), cancellationToken);
+        
         
         return Unit.Value;
     }

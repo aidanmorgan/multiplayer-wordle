@@ -4,7 +4,6 @@ using StackExchange.Redis;
 using Wordle.Aws.Common;
 using Wordle.Clock;
 using Wordle.Events;
-using Wordle.Logger;
 using Wordle.Redis.Common;
 
 namespace Wordle.Redis.Publisher;

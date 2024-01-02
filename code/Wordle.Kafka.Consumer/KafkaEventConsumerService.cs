@@ -4,10 +4,10 @@ using MediatR;
 using Newtonsoft.Json;
 using Polly;
 using Polly.Retry;
+using Microsoft.Extensions.Logging;
 using Wordle.Aws.Common;
 using Wordle.Kafka.Common;
 using Wordle.Events;
-using Wordle.Logger;
 
 namespace Wordle.Kafka.Consumer;
 
@@ -43,7 +43,7 @@ public class KafkaEventConsumerService : IEventConsumerService
     
 
     private readonly IMediator _mediator;
-    private readonly ILogger _logger;
+    private readonly ILogger<KafkaEventConsumerService> _logger;
     private readonly KafkaSettings _settings;
 
     private const int RetryCount = 10;
@@ -57,7 +57,7 @@ public class KafkaEventConsumerService : IEventConsumerService
             c.CloseConsumer();
         });
 
-    public KafkaEventConsumerService(KafkaSettings settings, IMediator mediator, ILogger logger)
+    public KafkaEventConsumerService(KafkaSettings settings, IMediator mediator, ILogger<KafkaEventConsumerService> logger)
     {
         _settings = settings;
         _mediator = mediator;
@@ -66,12 +66,10 @@ public class KafkaEventConsumerService : IEventConsumerService
     
     public async Task RunAsync(CancellationToken token)
     {
-        _logger.Log($"Receiving events from Topic: {_settings.Topic} for bootstrap servers: {_settings.BootstrapServers}");
+        _logger.LogInformation("Receiving events from Topic: {SettingsTopic} for bootstrap servers: {SettingsBootstrapServers}", _settings.Topic, _settings.BootstrapServers);
 
         var ctx = new Context();
         
-        _logger.Log("Listening for new game events....");
-
         while (!token.IsCancellationRequested)
         {
             var result = await RetryPolicy.ExecuteAndCaptureAsync(async (ctx) =>
@@ -108,7 +106,7 @@ public class KafkaEventConsumerService : IEventConsumerService
                 var decoded = (IEvent?)JsonConvert.DeserializeObject(message.Message.Value, KnownEventTypes[typeName]);
                 if (decoded == null || decoded.EventSourceType == _settings.InstanceType)
                 {
-                    _logger.Log($"Ignoring Event {decoded.EventType}#{decoded.Id} as it is from {decoded.EventSourceType}#{decoded.EventSourceId}");
+                    _logger.LogInformation("Ignoring Event {DecodedEventType}#{DecodedId} as it is from {EventSourceType}#{EventSourceId}", decoded.EventType, decoded.Id, decoded.EventSourceType, decoded.EventSourceId);
                     return;
                 }
 
@@ -117,8 +115,7 @@ public class KafkaEventConsumerService : IEventConsumerService
 
             if (result.Outcome == OutcomeType.Failure)
             {
-                _logger.Log($"Aborting processing. {_settings.InstanceType}#{_settings.InstanceId} had too many failures after {RetryCount} attempts.");
-                _logger.Log($"{result.FinalException}");
+                _logger.LogCritical(result.FinalException, "Aborting processing. {InstanceType}#{InstanceId} had too many failures after {RetryCount} attempts", _settings.InstanceType, _settings.InstanceId, RetryCount);
             }
         }
     }

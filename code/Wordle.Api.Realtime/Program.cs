@@ -16,9 +16,9 @@ public class Program
         builder.Host.UseServiceProviderFactory(new AutofacServiceProviderFactory(x =>
         {
             var conf = new AutofacConfigurationBuilder(x);
-            conf.AddDictionary();
+            conf.AddDynamoDictionary();
             conf.AddKafkaEventConsuming(EnvironmentVariables.InstanceType, EnvironmentVariables.InstanceId);
-            conf.AddGamePersistence();
+            conf.AddDynamoPersistence();
 
             conf.Callback(x =>
             {

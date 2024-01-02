@@ -2,10 +2,10 @@ using System.Net;
 using Amazon.EventBridge;
 using Amazon.EventBridge.Model;
 using Newtonsoft.Json;
+using Microsoft.Extensions.Logging;
 using Wordle.Aws.Common;
 using Wordle.Clock;
 using Wordle.Events;
-using Wordle.Logger;
 
 namespace Wordle.Aws.EventBridge;
 
@@ -18,12 +18,12 @@ public class EventBridgePublisher : IEventPublisher
     private static readonly Guid InstanceId = Ulid.NewUlid().ToGuid();
     private readonly IAmazonEventBridge _client;
     private readonly string _busName;
-    private readonly ILogger _logger;
+    private readonly ILogger<EventBridgePublisher> _logger;
     private readonly IClock _clock;
     private readonly string _instanceId;
     private readonly string _sourceType;
 
-    public EventBridgePublisher(IAmazonEventBridge client, string busName, string sourceType, string instanceId, ILogger logger, IClock clock)
+    public EventBridgePublisher(IAmazonEventBridge client, string busName, string sourceType, string instanceId, ILogger<EventBridgePublisher> logger, IClock clock)
     {
         _client = client;
         _busName = busName;
@@ -76,7 +76,7 @@ public class EventBridgePublisher : IEventPublisher
     {
         if (notification.EventSourceType == _sourceType && notification.EventSourceId == _instanceId)
         {
-            _logger.Log($"Ignoring event {notification.EventSourceType}#{notification.Id} as it is from {_sourceType}#{_instanceId}.");
+            _logger.LogInformation("Ignoring event {EventSourceType}#{Id} as it is from {SourceType}#{InstanceId}.", notification.EventSourceType, notification.Id, _sourceType, _instanceId);
             return;
         }
         
@@ -104,12 +104,12 @@ public class EventBridgePublisher : IEventPublisher
 
         if (response.HttpStatusCode != HttpStatusCode.OK)
         {
-            _logger.Log($"Publishing to EventBridge returned a {response.HttpStatusCode} status code.");
-            response.Entries.ForEach(x => _logger.Log($"Error: {x.ErrorCode} : {x.ErrorMessage}"));
+            _logger.LogError("Publishing to EventBridge returned a {ResponseHttpStatusCode} status code", response.HttpStatusCode);
+            response.Entries.ForEach(x => _logger.LogError("Error: {ErrorCode} : {ErrorMessage}", x.ErrorCode, x.ErrorMessage));
         }
         else
         {
-            entries.ForEach(x => _logger.Log($"Published: {x.Detail}"));
+            entries.ForEach(x => _logger.LogInformation("Published: {Detail}", x.Detail));
         }
     }
 

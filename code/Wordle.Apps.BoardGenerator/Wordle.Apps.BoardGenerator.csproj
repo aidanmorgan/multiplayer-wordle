@@ -16,7 +16,6 @@
     <ItemGroup>
       <ProjectReference Include="..\Wordle.Apps.Common\Wordle.Apps.Common.csproj" />
       <ProjectReference Include="..\Wordle.Clock\Wordle.Clock.csproj" />
-      <ProjectReference Include="..\Wordle.Logger\Wordle.Logger.csproj" />
       <ProjectReference Include="..\Wordle.Persistence\Wordle.Persistence.csproj" />
     </ItemGroup>
 

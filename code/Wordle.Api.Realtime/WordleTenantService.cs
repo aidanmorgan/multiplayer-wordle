@@ -11,7 +11,6 @@ using Newtonsoft.Json.Serialization;
 using Wordle.Events;
 using Wordle.Model;
 using Wordle.Queries;
-using ILogger = Wordle.Logger.ILogger;
 
 namespace Wordle.Api.Realtime;
 
@@ -35,9 +34,9 @@ public class WordleTenantService : IWordleTenantService
     private readonly IScheduler _scheduler = new EventLoopScheduler();
     private readonly IGuessDecimator _guessDecimator;
     private readonly IMediator _mediator;
-    private readonly ILogger _logger;
+    private readonly ILogger<WordleTenantService> _logger;
 
-    public WordleTenantService(IMediator mediator, IGuessDecimator decimator, ILogger logger)
+    public WordleTenantService(IMediator mediator, IGuessDecimator decimator, ILogger<WordleTenantService> logger)
     {
         _mediator = mediator;
         _guessDecimator = decimator;
@@ -180,9 +179,9 @@ public class WordleTenantService : IWordleTenantService
                     {
                         await webSocket.SendAsync(x, WebSocketMessageType.Text, true, ct);
                     }
-                    catch (Exception x)
+                    catch (Exception e)
                     {
-                        _logger.Log($"Exception thrown sending to websocket {connection.RemoteIpAddress}");
+                        _logger.LogError(e, "Exception thrown sending to websocket {ConnectionRemoteIpAddress}", connection.RemoteIpAddress);
                     }
                 }))
             .Concat()

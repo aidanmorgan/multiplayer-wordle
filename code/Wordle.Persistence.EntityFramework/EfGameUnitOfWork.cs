@@ -43,9 +43,18 @@ public class EfGameUnitOfWork : IGameUnitOfWork
         }
     }
 
-    public IOptionsRepository Options { get; }
-    
-    
+    private EfOptionsRepository? _optionsRepository;
+
+    public IOptionsRepository Options
+    {
+        get
+        {
+            _optionsRepository ??= new EfOptionsRepository(_context.Options);
+            return _optionsRepository;
+        }
+    }
+
+
     public async Task SaveAsync()
     {
         await _context.SaveChangesAsync();

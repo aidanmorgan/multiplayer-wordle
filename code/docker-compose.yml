@@ -17,11 +17,6 @@ services:
       - 5100:5100
     networks:
       - wordle-local
-    external_links:
-      - kafka1
-      - kafka2
-      - kafka3
-     
       
   private-api:
     image: aidanmorgan/wordle-privateapi
@@ -41,10 +36,6 @@ services:
       - 5200:5200
     networks:
       - wordle-local
-    external_links:
-      - kafka1
-      - kafka2
-      - kafka3
 
   realtime-api:
     image: aidanmorgan/wordle-realtimeapi
@@ -64,10 +55,6 @@ services:
       - 5300:5300
     networks:
       - wordle-local
-    external_links:
-      - kafka1
-      - kafka2
-      - kafka3
   
   event-handler:
     image: aidanmorgan/wordle-eventhandler
@@ -83,11 +70,6 @@ services:
       - $HOME/.aws/credentials:/home/app/.aws/credentials:ro  
     networks:
       - wordle-local
-    external_links:
-      - kafka1
-      - kafka2
-      - kafka3  
-  
   
   timeout-handler:
     image: aidanmorgan/wordle-timeouthandler
@@ -103,10 +85,6 @@ services:
       - $HOME/.aws/credentials:/home/app/.aws/credentials:ro
     networks:
       - wordle-local
-    external_links:
-      - kafka1
-      - kafka2
-      - kafka3
 
 
   board-generator:
@@ -125,10 +103,33 @@ services:
       - ./Wordle.Apps.BoardGenerator/deps:/usr/share/fonts:ro        
     networks:
       - wordle-local
-    external_links:
-      - kafka1
-      - kafka2
-      - kafka3
+
+  redis:
+    image: redis:latest
+    command: redis-server --save 60 1
+    env_file:
+      - .development.env
+      - .sensitive.env    
+    ports:
+      - 6379:6379    
+    networks:
+      - wordle-local
+
+  postgres:
+    image: postgres:latest
+    env_file:
+      - .development.env
+      - .sensitive.env
+    environment:
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    ports:
+      - 5432:5432
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+
+volumes:
+  postgres-data:
 
 
 networks:
