@@ -26,14 +26,12 @@ public class AddGuessToRoundCommandHandler : IRequestHandler<AddGuessToRoundComm
     public async Task<Unit> Handle(AddGuessToRoundCommand request, CancellationToken cancellationToken)
     {
         SessionQueryResult? queryResult = await _mediator.Send(new GetSessionByIdQuery(request.SessionId));
-
         if (queryResult == null)
         {
             throw new CommandException($"Cannot load Session with Id {request.SessionId}.");
         }
 
         Session session = queryResult.Session;
-
         if (session.State != SessionState.ACTIVE)
         {
             throw new CommandException($"Cannot add Guess to Round for Session {request.SessionId}, it is in an invalid state.");
@@ -57,6 +55,16 @@ public class AddGuessToRoundCommandHandler : IRequestHandler<AddGuessToRoundComm
             }
         }
 
+        // BUG:
+        // There used to be a check here to make sure that the guess timestamp was before the round end time, but
+        // it creates an interesting race condition where the round end is in the process of being updated.
+        // Rather than reject the users input (which can feel kind of gross) we will accept the input and store
+        // it, however if a round end is already being determined then this guess is effectively throwaway.
+        //
+        // The are corner cases here  still - if this guess would have created a tie then it's possible that
+        // we have chosen the wrong word. Also if there was already a tie then this guess could have tipped the word
+        // selection over to a different word. AFAIK this isn't an auditable financial system, so we'll just have to
+        // monitor (TODO: write query to detect this scenario).
         Guid guessId = Ulid.NewUlid().ToGuid();
 
         var uow = _uowFactory.Create();
@@ -70,14 +78,14 @@ public class AddGuessToRoundCommandHandler : IRequestHandler<AddGuessToRoundComm
             User = request.User
         });
 
-        bool roundEndUpdated = await UpdateRoundEndForNewGuess(uow, session, options, round);
+//        bool roundEndUpdated = await UpdateRoundEndForNewGuess(uow, session, options, round);
         
         await uow.SaveAsync();
         // broadcast this first before the guess add as it's more important to get out.
-        if (roundEndUpdated)
-        {
-            await _mediator.Publish(new RoundExtended(session.Tenant, session.Id, round.Id, session.ActiveRoundEnd!.Value), cancellationToken);
-        }
+//        if (roundEndUpdated)
+//        {
+//            await _mediator.Publish(new RoundExtended(session.Tenant, session.Id, round.Id, session.ActiveRoundEnd!.Value), cancellationToken);
+//        }
         
         await _mediator.Publish(new GuessAdded(session.Tenant, guessId, round.Id, session.Id), cancellationToken);
         
