@@ -30,10 +30,9 @@ public class EndActiveRoundCommandHandler : IRequestHandler<EndActiveRoundComman
     public async Task<Unit> Handle(EndActiveRoundCommand request, CancellationToken cancellationToken)
     {
         var res = await _mediator.Send(new GetSessionByIdQuery(request.SessionId));
-
         if (res == null)
         {
-            throw new CommandException($"Cannot end active Round for Session {request.SessionId}, Session not found.");
+            throw new EndActiveRoundCommandException($"Cannot end active Round for Session {request.SessionId}, Session not found.");
         }
 
         var session = res.Session;

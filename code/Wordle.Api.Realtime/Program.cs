@@ -16,7 +16,7 @@ public class Program
         builder.Host.UseServiceProviderFactory(new AutofacServiceProviderFactory(x =>
         {
             var conf = new AutofacConfigurationBuilder(x);
-            conf.AddDynamoDictionary();
+            conf.AddPostgresDictionary();
             conf.AddActiveMqEventConsumer(EnvironmentVariables.InstanceType, EnvironmentVariables.InstanceId, true);
             conf.AddPostgresPersistence();
 
@@ -24,6 +24,7 @@ public class Program
             {
                 x.RegisterType<WebsocketTenantService>()
                     .As<IWebsocketTenantService>()
+                    .SingleInstance()
                     .AsImplementedInterfaces()
                     .SingleInstance();
             });

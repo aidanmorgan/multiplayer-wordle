@@ -13,15 +13,19 @@ public class ActiveMqEventConsumerSettings : ActiveMqSettings
     
     public string InstanceId { get; init; }
     
-    public string ActiveMqUri { get; init; } = "activemq:tcp://localhost:61616";
+    public string ActiveMqUri { get; init; }
 
-    public int ServiceRetryCount { get; init; } = 10;
-    // how long to wait before attempting to reconnect the service back to the 
+    // how long to wait before attempting to reconnect the service back to the broker
     public TimeSpan ServiceRetryDelay { get; init; } = TimeSpan.FromSeconds(5);
+    // how long (max) we are willing to wait for reconnection to the broker before we kill the process
+    public TimeSpan MaximumServiceRetryTime { get; init; } = TimeSpan.FromMinutes(5);
+    public int ServiceRetryCount => (int)Math.Floor(MaximumServiceRetryTime.TotalMilliseconds / ServiceRetryDelay.TotalMilliseconds);
 
 
-    public int ConsumerRetryCount { get; init; } = 0;
     public TimeSpan ConsumerRetryDelay { get; init; } = TimeSpan.FromSeconds(1);
+    public TimeSpan MaximumConsumerRetryTime { get; init; } = TimeSpan.FromSeconds(10);
+
+    public int ConsumerRetryCount =>  (int)Math.Floor(MaximumConsumerRetryTime.TotalMilliseconds / ConsumerRetryDelay.TotalMilliseconds);
     
     public AsyncRetryPolicy ServiceRetryPolicy =>  Policy
         .Handle<NMSException>()

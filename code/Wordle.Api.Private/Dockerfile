@@ -24,7 +24,8 @@ COPY ["Wordle.Persistence.DynamoDb/Wordle.Persistence.DynamoDb.csproj", "Wordle.
 COPY ["Wordle.QueryHandlers.DynamoDb/Wordle.QueryHandlers.DynamoDb.csproj", "Wordle.QueryHandlers.DynamoDb/"]
 COPY ["Wordle.Render/Wordle.Render.csproj", "Wordle.Render/"]
 COPY ["Wordle.Kafka.Consumer/Wordle.Kafka.Consumer.csproj", "Wordle.Kafka.Consumer/"]
-COPY ["Wordle.Kafka.Common/Wordle.Kafka.Common.csproj", "Wordle.Kafka.Common/"]
+COPY ["Wordle.ActiveMq.Publisher/Wordle.ActiveMq.Publisher.csproj", "Wordle.ActiveMq.Publisher/"]
+COPY ["Wordle.ActiveMq.Common/Wordle.ActiveMq.Common.csproj", "Wordle.ActiveMq.Common/"]
 COPY ["Wordle.Kafka.Publisher/Wordle.Kafka.Publisher.csproj", "Wordle.Kafka.Publisher/"]
 COPY ["Wordle.Redis.Common/Wordle.Redis.Common.csproj", "Wordle.Redis.Common/"]
 COPY ["Wordle.Redis.Publisher/Wordle.Redis.Publisher.csproj", "Wordle.Redis.Publisher/"]
@@ -33,6 +34,8 @@ COPY ["Wordle.EfCore/Wordle.EfCore.csproj", "Wordle.EfCore/"]
 COPY ["Wordle.Persistence.EfCore/Wordle.Persistence.EfCore.csproj", "Wordle.Persistence.EfCore/"]
 COPY ["Wordle.QueryHandlers.EfCore/Wordle.QueryHandlers.EfCore.csproj", "Wordle.QueryHandlers.EfCore/"]
 COPY ["Wordle.Dictionary.EfCore/Wordle.Dictionary.EfCore.csproj", "Wordle.Dictionary.EfCore/"]
+COPY ["Wordle.ActiveMq.Consumer/Wordle.ActiveMq.Consumer.csproj", "Wordle.ActiveMq.Consumer/"]
+COPY ["Wordle.Api.Common/Wordle.Api.Common.csproj", "Wordle.Api.Common/"]
 RUN dotnet restore "Wordle.Api.Private/Wordle.Api.Private.csproj"
 COPY . .
 WORKDIR "/src/Wordle.Api.Private"

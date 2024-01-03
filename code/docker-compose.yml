@@ -19,6 +19,12 @@ services:
     links: 
       - activemq
       - postgres
+    depends_on:
+       postgres:
+          condition: service_healthy
+       activemq:
+         condition: service_healthy
+
     networks:
       - wordle-local
       
@@ -42,6 +48,11 @@ services:
     links:
       - activemq
       - postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+      activemq:
+        condition: service_healthy
     networks:
       - wordle-local
 
@@ -66,7 +77,12 @@ services:
       - 5300:5300
     links:
       - activemq
-      - postgres    
+      - postgres   
+    depends_on:
+      postgres:
+        condition: service_healthy
+      activemq:
+        condition: service_healthy
     networks:
       - wordle-local
   
@@ -86,7 +102,12 @@ services:
       - $HOME/.aws/credentials:/home/app/.aws/credentials:ro  
     links:
       - activemq
-      - postgres    
+      - postgres   
+    depends_on:
+      postgres:
+        condition: service_healthy
+      activemq:
+        condition: service_healthy
     networks:
       - wordle-local
   
@@ -110,6 +131,11 @@ services:
     links:
       - activemq
       - postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+      activemq:
+        condition: service_healthy
     networks:
       - wordle-local
 
@@ -121,11 +147,12 @@ services:
       - .sensitive-docker.env
     ports:
       - 61616:61616
-      - 8161:8161
-      - 5672:5672
     volumes:
-      - ../config/activemq:/mnt/conf
-      - activemq-data:/mnt/data
+      - ../config/activemq:/opt/activemq/conf:rw
+      - activemq-data:/opt/activemq/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:61616/ || exit 1"]
+      interval: 5s
     networks:
       wordle-local:
         aliases:
@@ -144,6 +171,11 @@ services:
       - 5432:5432
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       wordle-local:
         aliases:

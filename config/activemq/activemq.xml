@@ -21,12 +21,13 @@
         xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
   http://activemq.apache.org/schema/core http://activemq.apache.org/schema/core/activemq-core.xsd">
 
-    <!-- Allows us to use system properties as variables in this configuration file -->
+    <!-- Allows us to use system properties as variables in this configuration file 
     <bean class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
         <property name="locations">
             <value>file:${activemq.conf}/credentials.properties</value>
         </property>
     </bean>
+    -->
 
     <!-- Allows accessing the server log -->
     <bean id="logQuery" class="io.fabric8.insight.log.log4j.Log4jLogQuery"
@@ -111,18 +112,18 @@
         -->
         <transportConnectors>
             <!-- DOS protection, limit concurrent connections to 1000 and frame size to 100MB -->
-<!--            <transportConnector name="openwire"-->
-<!--                                uri="tcp://0.0.0.0:61616?maximumConnections=1000&amp;wireFormat.maxFrameSize=104857600"/>-->
-            <transportConnector name="amqp"
-                                uri="amqp://0.0.0.0:5672?maximumConnections=1000&amp;wireFormat.maxFrameSize=104857600"/>
-<!--
-            <transportConnector name="stomp"
-                                uri="stomp://0.0.0.0:61613?maximumConnections=1000&amp;wireFormat.maxFrameSize=104857600"/>
-            <transportConnector name="mqtt"
-                                uri="mqtt://0.0.0.0:1883?maximumConnections=1000&amp;wireFormat.maxFrameSize=104857600"/>
-            <transportConnector name="ws"
-                                uri="ws://0.0.0.0:61614?maximumConnections=1000&amp;wireFormat.maxFrameSize=104857600"/>
--->
+            <transportConnector name="openwire"
+                                uri="tcp://0.0.0.0:61616?maximumConnections=1000&amp;wireFormat.maxFrameSize=104857600"/>
+            <!--
+                        <transportConnector name="amqp"
+                                            uri="amqp://0.0.0.0:5672?maximumConnections=1000&amp;wireFormat.maxFrameSize=104857600"/>
+                        <transportConnector name="stomp"
+                                            uri="stomp://0.0.0.0:61613?maximumConnections=1000&amp;wireFormat.maxFrameSize=104857600"/>
+                        <transportConnector name="mqtt"
+                                            uri="mqtt://0.0.0.0:1883?maximumConnections=1000&amp;wireFormat.maxFrameSize=104857600"/>
+                        <transportConnector name="ws"
+                                            uri="ws://0.0.0.0:61614?maximumConnections=1000&amp;wireFormat.maxFrameSize=104857600"/>
+            -->
         </transportConnectors>
 
         <!-- destroy the spring context on shutdown to stop jetty -->
@@ -130,24 +131,22 @@
             <bean xmlns="http://www.springframework.org/schema/beans"
                   class="org.apache.activemq.hooks.SpringContextHook"/>
         </shutdownHooks>
-
     </broker>
-
+    
     <!--
         Enable web consoles, REST and Ajax APIs and demos
         The web consoles requires by default login, you can disable this in the jetty.xml file
 
         Take a look at ${ACTIVEMQ_HOME}/conf/jetty.xml for more details
-    -->
     <import resource="jetty.xml"/>
+    -->
 
-    <destinationInterceptors>
+<!--    <destinationInterceptors>
         <virtualDestinationInterceptor>
             <virtualDestinations>
                 <virtualTopic name=">" prefix="VirtualTopicConsumers.*." selectorAware="false"/>
             </virtualDestinations>
         </virtualDestinationInterceptor>
     </destinationInterceptors>
-
+-->
 </beans>
-        <!-- END SNIPPET: example -->

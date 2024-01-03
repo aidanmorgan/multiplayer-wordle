@@ -34,10 +34,11 @@ public class Program
         {
             x.RegisterType<GameEventProcessorHandlers>()
                 .SingleInstance()
-                .AsImplementedInterfaces();
+                .As<GameEventProcessorHandlers>();
 
             x.RegisterInstance(new ActiveMqDelayProcessingSettings()
             {
+                ActiveMqUri = EnvironmentVariables.ActiveMqBrokerUrl,
                 InstanceType = EnvironmentVariables.InstanceType,
                 InstanceId = EnvironmentVariables.InstanceId
             })

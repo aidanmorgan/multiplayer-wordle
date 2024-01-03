@@ -14,14 +14,18 @@ namespace Wordle.Apps.GameEventProcessor.Impl;
 
 public class ActiveMqDelayProcessingSettings
 {
-    public string ActiveMqUrl { get; init; } = "activemq:tcp://localhost:61616";
+    public string ActiveMqUri { get; init; }
     public string TaskQueueName { get; init; } = "DelayProcessing";
     
     public string InstanceType { get; init; }
     
     public string InstanceId { get; init; }
-    public int PublishRetryCount { get; init; } = 10;
+    
     public TimeSpan PublishRetryDelay { get; init; } = TimeSpan.FromSeconds(5);
+    public TimeSpan MaximumPublishRetryTime { get; init; } = TimeSpan.FromMinutes(1);
+    public int PublishRetryCount => (int)Math.Floor(MaximumPublishRetryTime.TotalMilliseconds / PublishRetryDelay.TotalMilliseconds);
+    
+    
     public AsyncRetryPolicy PublishRetryPolicy =>  Policy
         .Handle<NMSException>()
         .WaitAndRetryAsync(PublishRetryCount, (x) => PublishRetryDelay,
@@ -30,8 +34,10 @@ public class ActiveMqDelayProcessingSettings
                 c.GetLogger().LogWarning(e, $"{nameof(ActiveMqDelayProcessingService)} Publisher Exception");
             });
 
-    public int ConsumerRetryCount { get; init; } = 10;
     public TimeSpan ConsumerRetryDelay { get; init; } = TimeSpan.FromSeconds(5);
+    public TimeSpan MaximumConsumerRetryTime { get; init; } = TimeSpan.FromMinutes(1);
+    public int ConsumerRetryCount => (int)Math.Floor(MaximumConsumerRetryTime.TotalMilliseconds / ConsumerRetryDelay.TotalMilliseconds);
+
     public AsyncRetryPolicy ConsumerRetryPolicy => Policy
         .Handle<NMSException>()
         .WaitAndRetryAsync(PublishRetryCount, (x) => PublishRetryDelay,
@@ -73,9 +79,9 @@ public class ActiveMqDelayProcessingService : IDelayProcessingService
         var serviceCancellation = new CancellationTokenSource();
         
         var publishContext = new Context().Initialise(_logger);
-        var publisherResult = _settings.PublishRetryPolicy.ExecuteAndCaptureAsync(async (publishContext) =>
+        var publisherResult = _settings.PublishRetryPolicy.ExecuteAndCaptureAsync(action: async (c, ct) =>
         {
-            IConnectionFactory factory = new NMSConnectionFactory(_settings.ActiveMqUrl);
+            IConnectionFactory factory = new NMSConnectionFactory(_settings.ActiveMqUri);
             var connection = await factory.CreateConnectionAsync();
             await connection.StartAsync();
 
@@ -88,9 +94,9 @@ public class ActiveMqDelayProcessingService : IDelayProcessingService
 
             try
             {
-                while (!serviceCancellation.IsCancellationRequested)
+                while (!ct.IsCancellationRequested)
                 {
-                    var value = _publishQueue.Take(serviceCancellation.Token);
+                    var value = _publishQueue.Take(ct);
 
                     var delayMillis =
                         (int)Math.Max(Math.Ceiling(value.Timeout.Subtract(_clock.UtcNow()).TotalMilliseconds), 0);
@@ -121,12 +127,12 @@ public class ActiveMqDelayProcessingService : IDelayProcessingService
                 await connection.CloseAsync();
             }
 
-        }, token);
+        }, publishContext, serviceCancellation.Token);
 
         var consumeContext = new Context().Initialise(_logger);
-        var consumeResult = _settings.ConsumerRetryPolicy.ExecuteAndCaptureAsync(async (consumeContext) =>
+        var consumeResult = _settings.ConsumerRetryPolicy.ExecuteAndCaptureAsync(async (c, ct) =>
         {
-            IConnectionFactory factory = new NMSConnectionFactory(_settings.ActiveMqUrl);
+            IConnectionFactory factory = new NMSConnectionFactory(_settings.ActiveMqUri);
             var connection = await factory.CreateConnectionAsync();
             await connection.StartAsync();
 
@@ -141,7 +147,7 @@ public class ActiveMqDelayProcessingService : IDelayProcessingService
 
             try
             {
-                while (!token.IsCancellationRequested)
+                while (!ct.IsCancellationRequested)
                 {
                     var message = await consumer.ReceiveAsync(_settings.ConsumeReceiveTimeout) as ITextMessage;
 
@@ -160,16 +166,19 @@ public class ActiveMqDelayProcessingService : IDelayProcessingService
                 await session.CloseAsync();
                 await connection.CloseAsync();
             }
-        }, token);
+        }, consumeContext, serviceCancellation.Token);
 
         var all = new List<Task<PolicyResult>>()
         {
             publisherResult,
             consumeResult
         };
-        
-        Task.WaitAny(all.ToArray());
-        
+
+        try
+        {
+            Task.WaitAny(all.ToArray(), token);
+        }catch(OperationCanceledException) { }
+
         _logger.LogInformation($"Commencing shutdown of {nameof(ActiveMqDelayProcessingService)}");
         
         if (!token.IsCancellationRequested)
@@ -179,7 +188,7 @@ public class ActiveMqDelayProcessingService : IDelayProcessingService
         }
 
         // now go through and try and work out why we're shutting down so we can log it
-        var results = all.Select(x => x.Result);
+        var results = all.Select(x => x.Result).ToList();
 
         if (results.Any(x => x.Outcome == OutcomeType.Failure))
         {

@@ -34,7 +34,7 @@ public class Program
 
         configBuilder.Callback(x =>
         {
-            x.RegisterType<BoardGeneratorHandlers>().AsImplementedInterfaces();
+            x.RegisterType<BoardGeneratorHandlers>().As<BoardGeneratorHandlers>();
             x.RegisterType<LocalDiskStorage>()
                 .As<IBoardStorage>()
                 .WithParameter(new PositionalParameter(0, EnvironmentVariables.ImagesDirectory))

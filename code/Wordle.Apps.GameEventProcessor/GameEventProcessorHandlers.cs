@@ -16,18 +16,17 @@ public class GameEventProcessorHandlers :
     INotificationHandler<NewRoundStarted>,
     INotificationHandler<RoundExtended>
 {
+    private readonly Guid _instance = Guid.NewGuid();
     private readonly IMediator _mediator;
-    private readonly IClock _clock;
     private readonly IDelayProcessingService _delayProcessingService;
     private readonly ILogger<GameEventProcessorHandlers> _logger;
 
     public GameEventProcessorHandlers(IMediator mediator, 
         IDelayProcessingService delayProcessingService, 
-        IClock clock, ILogger<GameEventProcessorHandlers> logger)
+        ILogger<GameEventProcessorHandlers> logger)
     {
         _mediator = mediator;
         _logger = logger;
-        _clock = clock;
         _delayProcessingService = delayProcessingService;
     }
     
@@ -90,11 +89,14 @@ public class GameEventProcessorHandlers :
 
     public async Task Handle(NewRoundStarted n, CancellationToken cancellationToken)
     {
+        _logger.LogInformation($"NewRoundStarted - {n.Id}, Handler - {_instance}");
+
         await _delayProcessingService.ScheduleRoundUpdate(n.SessionId, n.RoundId, n.RoundExpiry, cancellationToken);
     }
 
     public async Task Handle(RoundExtended n, CancellationToken cancellationToken)
     {
+        _logger.LogInformation($"RoundExtended - {n.Id}, Handler - {_instance}");
         await _delayProcessingService.ScheduleRoundUpdate(n.SessionId, n.RoundId, n.RoundExpiry, cancellationToken);
     }
 }

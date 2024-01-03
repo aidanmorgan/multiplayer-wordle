@@ -1,6 +1,4 @@
-using System.Net;
-using System.Net.WebSockets;
-using System.Text;
+
 using Microsoft.AspNetCore.Mvc;
 
 namespace Wordle.Api.Realtime;
@@ -13,7 +11,7 @@ public class RealTimeController : Controller
     public async Task Subscribe( 
         [FromServices]IWebsocketTenantService service, 
         [FromServices] IHostApplicationLifetime applicationLifetime,
-        [FromServices] Serilog.ILogger logger,
+        [FromServices] ILogger<RealTimeController> logger,
         [FromRoute]string tenantId)
     {
         if (HttpContext.WebSockets.IsWebSocketRequest)
@@ -22,7 +20,7 @@ public class RealTimeController : Controller
 
             CancellationTokenSource cts = new CancellationTokenSource();
             
-            logger.Information("Accepted ws:// from {ConnectionRemoteIpAddress}", HttpContext.Connection.RemoteIpAddress);
+            logger.LogInformation("Accepted ws:// from {ConnectionRemoteIpAddress}", HttpContext.Connection.RemoteIpAddress);
             
             await service.AddClient(tenantId, webSocket, HttpContext.Connection, applicationLifetime.ApplicationStopping);
         }

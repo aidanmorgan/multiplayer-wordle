@@ -92,6 +92,7 @@ public class AutofacConfigurationBuilder
             )
             .UseNotificationPublisher(typeof(TaskWhenAllPublisher))
             .WithAllOpenGenericHandlerTypesRegistered()
+            .WithRegistrationScope(RegistrationScope.Scoped)
             .Build();
 
         b.RegisterMediatR(configuration);
@@ -208,7 +209,7 @@ public class AutofacConfigurationBuilder
         }).As<KafkaEventPublisherSettings>();
 
         _builder.RegisterType<KafkaEventPublisher>()
-            .AsImplementedInterfaces();
+            .As<KafkaEventPublisher>();
 
         MediatrAssemblies.Add(typeof(KafkaEventPublisher).Assembly);
 
@@ -227,7 +228,7 @@ public class AutofacConfigurationBuilder
 
         _builder
             .RegisterType<KafkaEventConsumerService>()
-            .AsImplementedInterfaces()
+            .As<KafkaEventConsumerService>()
             .SingleInstance();
 
         MediatrAssemblies.Add(typeof(KafkaEventConsumerService).Assembly);
@@ -240,7 +241,7 @@ public class AutofacConfigurationBuilder
         AddEventBridgeClient(_builder);
 
         _builder.RegisterType<EventBridgePublisher>()
-            .AsImplementedInterfaces()
+            .As<EventBridgePublisher>()
             .WithParameter(new PositionalParameter(1, EnvironmentVariables.EventBridgeName))
 
             // these are used to help with horizontal scaling, basically if we receive an event from the same instance
@@ -261,7 +262,7 @@ public class AutofacConfigurationBuilder
             .WithParameter(new PositionalParameter(0, url))
             .WithParameter(new PositionalParameter(1, eventSource))
             .WithParameter(new PositionalParameter(2, instanceId))
-            .AsImplementedInterfaces()
+            .As<SqsEventConsumerService>()
             .SingleInstance();
 
         MediatrAssemblies.Add(typeof(SqsEventConsumerService).Assembly);
@@ -291,7 +292,7 @@ public class AutofacConfigurationBuilder
         // wrapper that implements INotificationHandler that delegates to the IRedisPublisher
         _builder
             .RegisterType<RedisEventPublisher>()
-            .AsImplementedInterfaces();
+            .As<RedisEventPublisher>();
 
         MediatrAssemblies.Add(typeof(RedisEventPublisher).Assembly);
 
@@ -324,26 +325,27 @@ public class AutofacConfigurationBuilder
     {
         _builder.RegisterInstance(new ActiveMqEventPublisherSettings()
             {
+                ActiveMqUri = EnvironmentVariables.ActiveMqBrokerUrl,
                 InstanceType = instanceType,
                 InstanceId = instanceId
             })
             .As<ActiveMqEventPublisherSettings>()
             .SingleInstance();
 
-        _builder.RegisterType<ActiveMqPublisherService>()
+        _builder.RegisterType<ActiveMqEventPublisherService>()
             .As<IEventPublisherService>()
             .SingleInstance();
-
+        
         // use this to capture all events and then send them out to the event publisher service
         _builder
             .RegisterType<EventPublisherServiceDecoratorImpl>()
-            .AsImplementedInterfaces();
+            .AsImplementedInterfaces()
+            .SingleInstance();
 
         if (useHostedService)
         {
             _builder.RegisterType<EventPublisherBackgroundService>()
                 .As<IHostedService>()
-                .AsImplementedInterfaces()
                 .SingleInstance();
         }
 
@@ -354,6 +356,7 @@ public class AutofacConfigurationBuilder
     {
         var settings = new ActiveMqEventConsumerSettings()
         {
+            ActiveMqUri = EnvironmentVariables.ActiveMqBrokerUrl,
             InstanceType = instanceType,
             InstanceId = instanceId
         };
@@ -417,7 +420,6 @@ public class AutofacConfigurationBuilder
         {
             _builder.RegisterType<EventConsumerBackgroundService>()
                 .As<IHostedService>()
-                .AsImplementedInterfaces()
                 .SingleInstance();
         }
 
@@ -446,7 +448,7 @@ public class AutofacConfigurationBuilder
 
     public AutofacConfigurationBuilder RegisterSelf(Type program, bool inclueMediatr = true)
     {
-        _builder.RegisterType(program).As(program).AsImplementedInterfaces().SingleInstance();
+        _builder.RegisterType(program).As(program).SingleInstance();
 
         if (inclueMediatr)
         {

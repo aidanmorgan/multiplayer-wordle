@@ -13,20 +13,20 @@ using IStartable = Autofac.IStartable;
 
 namespace Wordle.ActiveMq.Publisher;
 
-public class ActiveMqPublisherService : IEventPublisherService
+public class ActiveMqEventPublisherService : IEventPublisherService
 {
     private readonly ActiveMqEventPublisherSettings _settings;
     private readonly IClock _clock;
-    private readonly ILogger _logger;
+    private readonly ILogger<ActiveMqEventPublisherService> _logger;
     
-    public ActiveMqPublisherService(ActiveMqEventPublisherSettings settings, IClock clock, ILogger<ActiveMqPublisherService> logger)
+    public ActiveMqEventPublisherService(ActiveMqEventPublisherSettings settings, IClock clock, ILogger<ActiveMqEventPublisherService> logger)
     {
         _settings = settings;
         _clock = clock;
         _logger = logger;
     }
 
-    private IDictionary<Type, BlockingCollection<IEvent>> _collections =
+    private readonly IDictionary<Type, BlockingCollection<IEvent>> _publisherQueues =
         new Dictionary<Type, BlockingCollection<IEvent>>();
     
     public async Task RunAsync(CancellationToken token)
@@ -36,14 +36,14 @@ public class ActiveMqPublisherService : IEventPublisherService
         foreach (var type in EventUtil.GetAllEventTypes())
         {
             var collection = new BlockingCollection<IEvent>();
-            _collections[type] = collection;
+            _publisherQueues[type] = collection;
         }
 
         var context = new Context().Initialise(_logger);
-        var result = await _settings.ServicePolicy.ExecuteAndCaptureAsync(async (context) =>
+        var result = await _settings.ServicePolicy.ExecuteAndCaptureAsync(async (c,ct) =>
         {
             var serviceCancel = new CancellationTokenSource();
-
+            
             IConnectionFactory factory = new NMSConnectionFactory(_settings.ActiveMqUri);
             var connection = await factory.CreateConnectionAsync("artemis", "artemis");
             await connection.StartAsync();
@@ -61,20 +61,33 @@ public class ActiveMqPublisherService : IEventPublisherService
                 
                 tasks.Add(Task.Run(async () =>
                 {
-                    var producer = await session.CreateProducerAsync(destination);
-                    await Producer(type, producer, session, serviceCancel.Token);
+                    try
+                    {
+                        var producer = await session.CreateProducerAsync(destination);
+                        await Producer(type, producer, session, serviceCancel.Token).ConfigureAwait(false);
+                    }
+                    catch (Exception x)
+                    {
+                        int i = 0;
+                    }
                 }, serviceCancel.Token));
             }
 
-            await Task.WhenAny(tasks);
+            try
+            {
+                Task.WaitAny(tasks.ToArray(), ct);
+            }
+            catch (OperationCanceledException) { }
 
             if (tasks.Any(x => x.IsFaulted))
             {
                 try
                 {
                     // we haven't been asked to shut the service down, so we need to kill off the background threads
-                    // and then re-start them again
-                    if (!token.IsCancellationRequested)
+                    // and then re-start them again.
+                    //
+                    // this is intetnionally not using the service token as that isn't at this level
+                    if (!ct.IsCancellationRequested)
                     {
                         await serviceCancel.CancelAsync();
                         Task.WaitAll(tasks.ToArray(), _settings.ProducerThreadCancelWait);
@@ -89,26 +102,38 @@ public class ActiveMqPublisherService : IEventPublisherService
                     await Cleanup(connection, session);
                 }
             }
-        }, token);
+        }, context, token);
 
+        if (result.Outcome == OutcomeType.Failure)
+        {
+            _logger.LogCritical(result.FinalException, $"{nameof(ActiveMqEventPublisherService)} exiting with failure");
+        }
+        else
+        {
+            _logger.LogInformation($"{nameof(ActiveMqEventPublisherService)} exiting.");
+        }
     }
 
     private async Task Producer(Type type, IMessageProducer producer, ISession session, CancellationToken serviceCancel)
     {
         var ctx = new Context().Initialise(_logger);
-        
-        var result = await _settings.ProducerPolicy.ExecuteAndCaptureAsync(async (ctx) =>
+        var result = await _settings.ProducerPolicy.ExecuteAndCaptureAsync(async (c, ct) =>
         {
             try
             {
-                while (!serviceCancel.IsCancellationRequested)
+                while (!ct.IsCancellationRequested)
                 {
-                    var ev = _collections[type].Take(serviceCancel);
+                    var ev = _publisherQueues[type].Take(ct);
                     // this check makes sure that the event we're generating hasn't already been dispatched somewhere
                     // else as these values are only set by the publisher
                     if (!string.IsNullOrEmpty(ev.EventSourceId) || !string.IsNullOrEmpty(ev.EventSourceType))
                     {
-                        return;
+                        continue;
+                    }
+
+                    if (ev.EventSourceType == _settings.InstanceType)
+                    {
+                        continue;
                     }
 
                     ev.EventSourceType = _settings.InstanceType;
@@ -133,7 +158,7 @@ public class ActiveMqPublisherService : IEventPublisherService
             // suppressing this on purpose, if it is thrown it is because the token has been cancelled from outside of this
             // thread and we are just going to shut down anyway.
             catch(OperationCanceledException) {}
-        }, serviceCancel);
+        }, ctx, serviceCancel);
 
         try
         {
@@ -177,6 +202,6 @@ public class ActiveMqPublisherService : IEventPublisherService
     {
         // we dont publish immediately, we add the event to a blocking queue that is used by a background thread
         // that actually does the publishing.
-        _collections[ev.GetType()].Add(ev, token);
+        _publisherQueues[ev.GetType()].Add(ev, token);
     }
 }

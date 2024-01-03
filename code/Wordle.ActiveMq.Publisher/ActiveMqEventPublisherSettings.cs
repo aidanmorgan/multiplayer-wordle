@@ -10,28 +10,33 @@ public class ActiveMqEventPublisherSettings : ActiveMqSettings
 {
     public string InstanceType { get; init; }
     public string InstanceId { get; init; }
-    public string ActiveMqUri { get; init; } = "activemq:tcp://localhost:61616";
+    public string ActiveMqUri { get; init; }
     public TimeSpan EventTimeToLive { get; init; } = TimeSpan.FromHours(2);
 
-    public int ServiceRetryCount { get; init; } = 5;
     public TimeSpan ServiceRetryDelay { get; init; } = TimeSpan.FromSeconds(5);
+    public TimeSpan MaximumServiceRetryTime { get; init; } = TimeSpan.FromMinutes(10);
+
+    public int ServiceRetryCount =>
+        (int)Math.Floor(MaximumServiceRetryTime.TotalMilliseconds / ServiceRetryDelay.TotalMilliseconds);
+
     public AsyncRetryPolicy ServicePolicy =>
         Policy.Handle<NMSException>()
             .WaitAndRetryAsync(ServiceRetryCount, (x) => ServiceRetryDelay,             
             onRetry: (x, i, c) =>
             {
-                (c.GetLogger()).LogWarning(x, $"S{nameof(ActiveMqPublisherService)} Service error...");
+                (c.GetLogger()).LogWarning(x, $"S{nameof(ActiveMqEventPublisherService)} Service error...");
             });
 
-    public int ProducerRetryCount { get; init; } = 0;
     public TimeSpan ProducerRetryDelay { get; init; } = TimeSpan.FromSeconds(1);
+    public TimeSpan MaximumProducerRetryTime { get; init; } = TimeSpan.FromSeconds(10);
+    public int ProducerRetryCount => (int)Math.Floor(MaximumProducerRetryTime.TotalMilliseconds / ProducerRetryDelay.TotalMilliseconds);
     
     public AsyncRetryPolicy ProducerPolicy =>
     Policy.Handle<NMSException>()
         .WaitAndRetryAsync(ProducerRetryCount, (x) => ProducerRetryDelay,             
             onRetry: (x, i, c) =>
             {
-                (c.GetLogger()).LogWarning(x, $"{nameof(ActiveMqPublisherService)} Producer error...");
+                (c.GetLogger()).LogWarning(x, $"{nameof(ActiveMqEventPublisherService)} Producer error...");
             });
 
     

@@ -27,8 +27,6 @@ public interface IWebsocketTenantService :
 
 public class WebsocketTenantService : IWebsocketTenantService
 {
-    // TODO : this is actually the dynamo content leaking and we need to do something about that
-    public const string TenantPrefix = "tenant#web#";
     private readonly IDictionary<string, IObservable<ArraySegment<byte>>> _tenantObservables = new Dictionary<string, IObservable<ArraySegment<byte>>>();
     private readonly ReaderWriterLock _observablesLock = new();
     private readonly IScheduler _scheduler = new EventLoopScheduler();
@@ -102,7 +100,6 @@ public class WebsocketTenantService : IWebsocketTenantService
     public async Task Handle(RoundExtended notification, CancellationToken cancellationToken)
     {
         var observable = GetObservableForTenant(notification.Tenant);
-        
         if (observable == null)
         {
             return;
@@ -163,12 +160,6 @@ public class WebsocketTenantService : IWebsocketTenantService
 
     public async Task AddClient(string tenantId, WebSocket webSocket, ConnectionInfo connection, CancellationToken ct)
     {
-        if (!tenantId.StartsWith(TenantPrefix))
-        {
-            
-            tenantId = TenantPrefix + tenantId;
-        }
-
         var observable = GetObservableForTenant(tenantId, CreateObserver)!;
         
         var disposable = observable
@@ -237,6 +228,10 @@ public class WebsocketTenantService : IWebsocketTenantService
     /// </summary>
     private IObservable<ArraySegment<byte>>? GetObservableForTenant(string id, Func<IObservable<ArraySegment<byte>>> factory = null)
     {
+        if (!id.StartsWith("web#"))
+        {
+            id = $"web#{id}";
+        }
         try
         {
             _observablesLock.AcquireReaderLock(TimeSpan.FromSeconds(5));
@@ -250,11 +245,6 @@ public class WebsocketTenantService : IWebsocketTenantService
             _observablesLock.ReleaseReaderLock();
         }
 
-        if (factory == null)
-        {
-            return null;
-        }
-
         try
         {
             _observablesLock.AcquireWriterLock(TimeSpan.FromSeconds(5));
@@ -262,6 +252,12 @@ public class WebsocketTenantService : IWebsocketTenantService
             if (_tenantObservables.TryGetValue(id, out var tenant))
             {
                 return tenant;
+            }
+
+            if (factory == null)
+            {
+                _logger.LogError("Observable for Tenant {Tenant} not found", id);
+                return null;
             }
 
             var observable = factory();

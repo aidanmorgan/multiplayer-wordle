@@ -1,16 +1,12 @@
-﻿using System.Security.Cryptography;
-using System.Text.Json;
+﻿using System.Text.Json;
 using MediatR;
 using Microsoft.Extensions.Logging;
-using Microsoft.VisualBasic;
-using Nito.AsyncEx;
 using Wordle.Common;
 using Wordle.Events;
 using Apache.NMS;
 using Apache.NMS.Util;
 using Polly;
 using Wordle.ActiveMq.Common;
-using IStartable = Autofac.IStartable;
 
 namespace Wordle.ActiveMq.Consumer;
 
@@ -33,14 +29,13 @@ public class ActiveMqEventConsumerService : IEventConsumerService
         var ctx = new Context().Initialise(_logger);
 
         var consumerCancellationToken = new CancellationTokenSource();
-        var result = await _settings.ServiceRetryPolicy.ExecuteAndCaptureAsync(async (ctx) =>
+        var result = await _settings.ServiceRetryPolicy.ExecuteAndCaptureAsync(async (c,ct) =>
         {
             IConnectionFactory factory = new NMSConnectionFactory(_settings.ActiveMqUri);
             var connection = await factory.CreateConnectionAsync();
             await connection.StartAsync();
 
             var session = await connection.CreateSessionAsync();
-
             var tasks = new List<Task>();
             
             // TODO : this approach may be too complex, we are using a topic per event on the publisher side but that means
@@ -65,12 +60,15 @@ public class ActiveMqEventConsumerService : IEventConsumerService
                     var consumer = await session.CreateConsumerAsync(queue);
                     _logger.LogInformation("Creating shared durable consumer for Topic {TopicName}", topicName);
                     await EventConsumer(eventClass, consumer, consumerCancellationToken.Token);
-                }, token));
+                }, consumerCancellationToken.Token));
             }
             
             // we are going to block at this point until one of the child threads we just spawned comes back with a problem
             // to consider
-            await Task.WhenAny(tasks);
+            try
+            {
+                Task.WaitAny(tasks.ToArray(), ct);
+            }catch(OperationCanceledException) { }
 
             if (tasks.Any(x => x.IsFaulted))
             {
@@ -80,7 +78,7 @@ public class ActiveMqEventConsumerService : IEventConsumerService
                     // but if we are in this step because at least one of the consumer threads has died then we need
                     // to cancel all of the other threads and then clean up the resources as we're going to try and
                     // reconnect at the top-level.
-                    if (!token.IsCancellationRequested)
+                    if (!ct.IsCancellationRequested)
                     {
                         await consumerCancellationToken.CancelAsync();
                         Task.WaitAll(tasks.ToArray(), _settings.ConsumerThreadCancelWait);
@@ -95,7 +93,7 @@ public class ActiveMqEventConsumerService : IEventConsumerService
                     await Cleanup(connection, session);
                 }
             }
-        }, token);
+        }, ctx, token);
 
         if (result.Outcome == OutcomeType.Failure)
         {
@@ -110,9 +108,9 @@ public class ActiveMqEventConsumerService : IEventConsumerService
     private async Task EventConsumer(Type eventType, IMessageConsumer consumer, CancellationToken token)
     {
         var ctx = new Context().Initialise(_logger);
-        var result = await _settings.ConsumerRetryPolicy.ExecuteAndCaptureAsync(async (ctx) =>
+        var result = await _settings.ConsumerRetryPolicy.ExecuteAndCaptureAsync(async (c, ct) =>
         {
-            while (!token.IsCancellationRequested)
+            while (!ct.IsCancellationRequested)
             {
                 // activemq for whatever reason doesn't support cancellation tokens, so what we need to do here is a
                 // relatively "short" poll to see if there is any data - if there isn't then we need to spin back around
@@ -128,7 +126,7 @@ public class ActiveMqEventConsumerService : IEventConsumerService
                 _logger.LogInformation("Received Event: {Event}", message.Text);
                 await _mediator.Publish(@event);
             }
-        }, token);
+        }, ctx, token);
 
         try
         {

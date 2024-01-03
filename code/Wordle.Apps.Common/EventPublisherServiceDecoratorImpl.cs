@@ -1,3 +1,4 @@
+using MediatR;
 using Wordle.Common;
 using Wordle.Events;
 
@@ -48,6 +49,11 @@ public class EventPublisherServiceDecoratorImpl : IAllEventHandlers
     }
 
     public async Task Handle(SessionTerminated notification, CancellationToken cancellationToken)
+    {
+        await _publisher.Publish(notification, cancellationToken);
+    }
+
+    public async Task Handle(BaseEvent notification, CancellationToken cancellationToken)
     {
         await _publisher.Publish(notification, cancellationToken);
     }
