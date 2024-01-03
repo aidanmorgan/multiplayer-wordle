@@ -396,5 +396,7 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
-/code/.sensitive.env
 /code/.idea/**
+/code/.sensitive-docker.env
+/code/.sensitive-local.env
+/data/
