@@ -1,17 +1,10 @@
-﻿using System.Text;
-using Autofac;
-using Confluent.Kafka;
-using Confluent.Kafka.Admin;
-using Newtonsoft.Json;
-using Nito.AsyncEx;
-using Wordle.Aws.Common;
-using Wordle.Kafka.Common;
-using Wordle.Clock;
+﻿
+using Wordle.Common;
 using Wordle.Events;
 
 namespace Wordle.Kafka.Publisher;
 
-public class KafkaEventPublisher : IEventPublisher
+public class KafkaEventPublisher : IAllEventHandlers
 {
     private readonly IKafkaPublisher _publisher;
 

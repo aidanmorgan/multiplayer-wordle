@@ -1,6 +1,6 @@
 using Amazon.DynamoDBv2.DocumentModel;
 
-namespace Wordle.Persistence.Dynamo;
+namespace Wordle.Persistence.DynamoDb;
 
 public static class DocumentExtensions
 {

@@ -5,7 +5,7 @@ using MediatR;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Microsoft.Extensions.Logging;
-using Wordle.Aws.Common;
+using Wordle.Common;
 using Wordle.Events;
 
 namespace Wordle.Aws.EventBridge;

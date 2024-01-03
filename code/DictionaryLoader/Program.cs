@@ -2,7 +2,6 @@
 
 
 using DictionaryLoader;
-using Wordle.Common;
 
 var _mode = Mode.PostgresInsert;
 
@@ -22,8 +21,11 @@ switch (_mode)
     }
 }
 
-enum Mode
+namespace DictionaryLoader
 {
-    DynamoFile,
-    PostgresInsert
+    enum Mode
+    {
+        DynamoFile,
+        PostgresInsert
+    }
 }

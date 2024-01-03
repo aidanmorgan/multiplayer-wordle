@@ -28,12 +28,12 @@ public class StringListTypeHandler<T> : SqlMapper.TypeHandler<List<string>>
 {
     public override List<string> Parse(object value)
     {
-        return ((string[])value).ToList();
+        return ((string[])value)?.ToList() ?? [];
     }
 
     public override void SetValue(IDbDataParameter parameter, List<string>? value)
     {
-        parameter.Value = value.ToArray();
+        parameter.Value = value?.ToArray() ?? Array.Empty<string>();
     }
 }
 
@@ -41,11 +41,11 @@ public class LetterStateListTypeHandler<T> : SqlMapper.TypeHandler<List<LetterSt
 {
     public override List<LetterState> Parse(object value)
     {
-        return ((int[])value).Select(x => (LetterState)x).ToList();
+        return ((int[])value)?.Select(x => (LetterState)x).ToList() ?? [];
     }
 
     public override void SetValue(IDbDataParameter parameter, List<LetterState>? value)
     {
-        parameter.Value = value.Select(x => (int)x).ToArray();
+        parameter.Value = value?.Select(x => (int)x).ToArray() ?? Array.Empty<int>();
     }
 }

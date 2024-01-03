@@ -9,7 +9,9 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Wordle.Aws.Common\Wordle.Aws.Common.csproj" />
+      <ProjectReference Include="..\Wordle.ActiveMq.Consumer\Wordle.ActiveMq.Consumer.csproj" />
+      <ProjectReference Include="..\Wordle.ActiveMq.Publisher\Wordle.ActiveMq.Publisher.csproj" />
+      <ProjectReference Include="..\Wordle.Api.Common\Wordle.Api.Common.csproj" />
       <ProjectReference Include="..\Wordle.Dictionary.DynamoDb\Wordle.Dictionary.DynamoDb.csproj" />
       <ProjectReference Include="..\Wordle.Aws.EventBridge\Wordle.Aws.EventBridge.csproj" />
       <ProjectReference Include="..\Wordle.Dictionary.EfCore\Wordle.Dictionary.EfCore.csproj" />
@@ -35,6 +37,8 @@
       <PackageReference Include="AWSSDK.SimpleNotificationService" Version="3.7.300.28" />
       <PackageReference Include="AWSSDK.SQS" Version="3.7.300.28" />
       <PackageReference Include="MediatR.Extensions.Autofac.DependencyInjection" Version="11.3.0" />
+      <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="8.0.0" />
+      <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
       <PackageReference Include="Serilog.Extensions.Autofac.DependencyInjection" Version="5.0.0" />
     </ItemGroup>
 

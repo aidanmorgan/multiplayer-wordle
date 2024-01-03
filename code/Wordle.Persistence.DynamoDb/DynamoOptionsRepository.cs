@@ -1,6 +1,6 @@
 ﻿using Wordle.Model;
 
-namespace Wordle.Persistence.Dynamo;
+namespace Wordle.Persistence.DynamoDb;
 
 public class DynamoOptionsRepository : DynamoRepositoryImpl<Options>, IOptionsRepository, IDynamoRepository<Options>
 {

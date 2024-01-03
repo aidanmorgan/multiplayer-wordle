@@ -1,7 +1,6 @@
 ﻿using Wordle.Model;
-using Wordle.Persistence.Dynamo;
 
-namespace Wordle.Persistence.Dynamo;
+namespace Wordle.Persistence.DynamoDb;
 
 public interface IDynamoMappers
 {

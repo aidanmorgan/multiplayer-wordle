@@ -1,8 +1,6 @@
 using Amazon.DynamoDBv2.DocumentModel;
-using Amazon.DynamoDBv2.Model;
-using MediatR;
 
-namespace Wordle.Persistence.Dynamo;
+namespace Wordle.Persistence.DynamoDb;
 
 public class DFieldMapper<T>
 {

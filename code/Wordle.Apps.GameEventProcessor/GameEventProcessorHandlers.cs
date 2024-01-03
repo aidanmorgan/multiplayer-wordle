@@ -11,8 +11,7 @@ using Wordle.Queries;
 
 namespace Wordle.Apps.GameEventProcessor;
 
-public class GameEventHandlers : 
-    INotificationHandler<NewSessionStarted>, 
+public class GameEventProcessorHandlers : 
     INotificationHandler<RoundEnded>, 
     INotificationHandler<NewRoundStarted>,
     INotificationHandler<RoundExtended>
@@ -20,11 +19,11 @@ public class GameEventHandlers :
     private readonly IMediator _mediator;
     private readonly IClock _clock;
     private readonly IDelayProcessingService _delayProcessingService;
-    private readonly ILogger<GameEventHandlers> _logger;
+    private readonly ILogger<GameEventProcessorHandlers> _logger;
 
-    public GameEventHandlers(IMediator mediator, 
+    public GameEventProcessorHandlers(IMediator mediator, 
         IDelayProcessingService delayProcessingService, 
-        IClock clock, ILogger<GameEventHandlers> logger)
+        IClock clock, ILogger<GameEventProcessorHandlers> logger)
     {
         _mediator = mediator;
         _logger = logger;
@@ -32,11 +31,6 @@ public class GameEventHandlers :
         _delayProcessingService = delayProcessingService;
     }
     
-    public Task Handle(NewSessionStarted x, CancellationToken cancellationToken)
-    {
-        return Task.CompletedTask;
-    }
-
     public async Task Handle(RoundEnded detail, CancellationToken cancellationToken)
     {
         var q = await _mediator.Send(new GetSessionByIdQuery(detail.SessionId));
@@ -72,16 +66,24 @@ public class GameEventHandlers :
         }
         else
         {
-            if (rounds.Count < options.NumberOfRounds)
+            try
             {
-                var roundId = await _mediator.Send(new CreateNewRoundCommand(detail.SessionId));
-                _logger.LogInformation("Created new round {RoundId} for Session {SessionId}", roundId, detail.SessionId);
-                return;
+                if (rounds.Count < options.NumberOfRounds)
+                {
+                    var roundId = await _mediator.Send(new CreateNewRoundCommand(detail.SessionId));
+                    _logger.LogInformation("Created new round {RoundId} for Session {SessionId}", roundId,
+                        detail.SessionId);
+                    return;
+                }
+                else
+                {
+                    _logger.LogInformation("Incorrect final guess, ending Session {SessionId}", detail.SessionId);
+                    await _mediator.Send(new EndSessionCommand(detail.SessionId, session.Word, false, true));
+                }
             }
-            else
+            catch (CommandException x)
             {
-                _logger.LogInformation("Incorrect final guess, ending Session {SessionId}", detail.SessionId);
-                await _mediator.Send(new EndSessionCommand(detail.SessionId, session.Word, false, true));
+                _logger.LogError(x, "Error update state of Session {DetailSessionId}", detail.SessionId);
             }
         }
     }

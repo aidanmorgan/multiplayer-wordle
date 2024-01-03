@@ -1,4 +1,4 @@
-﻿namespace Wordle.Aws.Common;
+﻿namespace Wordle.Common;
 
 public interface IEventConsumerService
 {

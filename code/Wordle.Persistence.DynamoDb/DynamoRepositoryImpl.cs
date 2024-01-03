@@ -1,8 +1,7 @@
-using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.DocumentModel;
 using Wordle.Model;
 
-namespace Wordle.Persistence.Dynamo;
+namespace Wordle.Persistence.DynamoDb;
 
 public class DynamoRepositoryImpl<T> : IDynamoRepository<T> where T : class, IAggregate, new()
 {

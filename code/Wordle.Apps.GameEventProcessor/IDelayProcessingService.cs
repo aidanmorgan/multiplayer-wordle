@@ -1,7 +1,3 @@
-using Amazon.Runtime.Internal.Util;
-using Hangfire.Logging;
-using Nito.AsyncEx;
-using Wordle.Apps.Common;
 
 namespace Wordle.Apps.GameEventProcessor;
 

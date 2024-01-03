@@ -3,15 +3,15 @@ using Amazon.EventBridge;
 using Amazon.EventBridge.Model;
 using Newtonsoft.Json;
 using Microsoft.Extensions.Logging;
-using Wordle.Aws.Common;
 using Wordle.Clock;
+using Wordle.Common;
 using Wordle.Events;
 
 namespace Wordle.Aws.EventBridge;
 
 // an implementation of INotificationHandlers that push ALL event types out to an event bridge instance
 // with the detail set appropriately for integration with other downstream lambdas
-public class EventBridgePublisher : IEventPublisher
+public class EventBridgePublisher : IAllEventHandlers
 {
     public const string EventDetailPrefix = "wordle.";
     

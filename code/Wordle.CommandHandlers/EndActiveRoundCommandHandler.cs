@@ -42,12 +42,12 @@ public class EndActiveRoundCommandHandler : IRequestHandler<EndActiveRoundComman
 
         if (session.State != SessionState.ACTIVE)
         {
-            throw new CommandException($"Cannot end active Round for Session {request.SessionId}, not ACTIVE.");
+            throw new EndActiveRoundCommandException($"Cannot end active Round for Session {request.SessionId}, not ACTIVE.");
         }
 
         if (!session.ActiveRoundEnd.HasValue)
         {
-            throw new CommandException(
+            throw new EndActiveRoundCommandException(
                 $"Cannot end active Round for Session {request.SessionId}, there is no round end time set.");
         }
 
@@ -61,7 +61,7 @@ public class EndActiveRoundCommandHandler : IRequestHandler<EndActiveRoundComman
         {
             if (session.ActiveRoundId != request.RoundId)
             {
-                throw new CommandException(
+                throw new EndActiveRoundCommandException(
                     $"Cannot end active Round for Session {request.SessionId}, the expected Round {request.RoundId} is not the active round.");
             }
 
@@ -74,13 +74,13 @@ public class EndActiveRoundCommandHandler : IRequestHandler<EndActiveRoundComman
         
         if (round == null)
         {
-            throw new CommandException(
+            throw new EndActiveRoundCommandException(
                 $"Cannot end active round for Session {request.SessionId}, the active Round {session.ActiveRoundId} not found.");
         }
 
         if (round.State != RoundState.ACTIVE)
         {
-            throw new CommandException($"Cannot end active round with id {round.Id} as it is not ACTIVE.");
+            throw new EndActiveRoundCommandException($"Cannot end active round with id {round.Id} as it is not ACTIVE.");
         }
 
         var guesses = await _mediator.Send(new GetGuessesForRoundQuery(round.Id), cancellationToken);
@@ -89,9 +89,12 @@ public class EndActiveRoundCommandHandler : IRequestHandler<EndActiveRoundComman
         
         if (!request.Force)
         {
-            if (session.ActiveRoundEnd.Value.IsAfter(_clock.UtcNow()))
+            // if we are attempting to end the round but the check comes in "slightly" early, then we should just
+            // allow it to happen anyway.
+            var secondsInFuture = session.ActiveRoundEnd.Value.Subtract(_clock.UtcNow()).TotalSeconds;
+            if ( secondsInFuture> options.RoundEndToleranceSeconds)
             {
-                throw new CommandException($"Cannot end active Round{session.ActiveRoundId} for Session {session.Id} as it is in the future.");
+                throw new EndActiveRoundCommandException($"Cannot end active Round{session.ActiveRoundId} for Session {session.Id} as it is {secondsInFuture} seconds in the future.");
             }
 
             // firstly, check to see if we should actually end the round, because maybe there aren't enough guesses registered and
@@ -103,9 +106,15 @@ public class EndActiveRoundCommandHandler : IRequestHandler<EndActiveRoundComman
                         ((_clock.UtcNow() - round.CreatedAt).TotalSeconds - options.InitialRoundLength) /
                         options.RoundExtensionLength);
 
-                if (numExtensions < options.MaximumRoundExtensions)
+
+                var maximumRoundDuration = options.InitialRoundLength + (options.RoundExtensionLength * options.MaximumRoundExtensions);
+                session.ActiveRoundEnd = _clock.UtcNow().Add(TimeSpan.FromSeconds(options.RoundExtensionLength));
+                
+                // if we are allowed to add another extension AND adding the extension doesn't make the round go longer than it is allowed to
+                // then add the extension to the round
+                if (numExtensions < options.MaximumRoundExtensions && session.ActiveRoundEnd.Value < (round.CreatedAt.AddSeconds(maximumRoundDuration)))
                 {
-                    session.ActiveRoundEnd = session.ActiveRoundEnd.Value.Add(TimeSpan.FromSeconds(options.RoundExtensionLength));
+                    // we have a valid reason to extend the round, so lets make it move into the future.
                     await uow.Sessions.UpdateAsync(session);
                     await uow.SaveAsync();
                     
@@ -145,7 +154,7 @@ public class EndActiveRoundCommandHandler : IRequestHandler<EndActiveRoundComman
         await uow.SaveAsync();
         await _mediator.Publish(new RoundEnded(session.Tenant, session.Id, round.Id), cancellationToken);
         
-        _logger.LogInformation("Ending Round {RoundId}, selected word was {Word}.", round.Id, word);
+        _logger.LogInformation("Ending Round {RoundId}, selected word was {Word}.", round.Id, word.Key);
 
         return Unit.Value;
     }

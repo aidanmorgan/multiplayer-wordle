@@ -25,6 +25,7 @@ public class Options : IAggregate
     
     public string? TenantId { get; set; }
     public Guid Id { get; set; }
+    public int RoundEndToleranceSeconds { get; set; } = 2;
 
     public bool IsTenant()
     {

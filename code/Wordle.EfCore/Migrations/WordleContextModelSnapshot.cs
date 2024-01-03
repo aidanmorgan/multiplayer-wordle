@@ -96,6 +96,10 @@ namespace Wordle.EfCore.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("numberofrounds");
 
+                    b.Property<int>("RoundEndToleranceSeconds")
+                        .HasColumnType("integer")
+                        .HasColumnName("roundendtoleranceseconds");
+
                     b.Property<int>("RoundExtensionLength")
                         .HasColumnType("integer")
                         .HasColumnName("roundextensionlength");

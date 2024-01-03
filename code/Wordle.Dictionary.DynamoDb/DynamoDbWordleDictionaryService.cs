@@ -1,8 +1,7 @@
 ﻿using Amazon.DynamoDBv2.DocumentModel;
-using Wordle.Dictionary;
 using Wordle.Model;
 
-namespace Wordle.Aws.DictionaryImpl;
+namespace Wordle.Dictionary.DynamoDb;
 
 public class DynamoDbWordleDictionaryService : IWordleDictionaryService
 {

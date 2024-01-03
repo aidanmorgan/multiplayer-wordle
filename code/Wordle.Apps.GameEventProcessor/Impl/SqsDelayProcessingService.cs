@@ -39,7 +39,7 @@ public class SqsDelayProcessingService : IDelayProcessingService
         try
         {
             await _sqs.SendMessageAsync(new SendMessageRequest(EnvironmentVariables.TimeoutQueueUrl,
-                JsonConvert.SerializeObject(new TimeoutPayload(sessionId, roundId)))
+                JsonConvert.SerializeObject(new TimeoutPayload(sessionId, roundId, executionTime)))
             {
                 DelaySeconds = (int)Math.Max(Math.Ceiling(executionTime.Subtract(_clock.UtcNow()).TotalSeconds), 0)
             }, cancellationToken);

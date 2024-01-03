@@ -1,6 +1,6 @@
 ﻿using Wordle.Common;
 
-namespace Wordle.Persistence.Dynamo;
+namespace Wordle.Persistence.DynamoDb;
 
 public class Tenant
 {

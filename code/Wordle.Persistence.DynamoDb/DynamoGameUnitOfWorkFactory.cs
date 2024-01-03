@@ -1,6 +1,4 @@
-using Amazon.DynamoDBv2;
-
-namespace Wordle.Persistence.Dynamo;
+namespace Wordle.Persistence.DynamoDb;
 
 public class DynamoGameUnitOfWorkFactory : IGameUnitOfWorkFactory
 {

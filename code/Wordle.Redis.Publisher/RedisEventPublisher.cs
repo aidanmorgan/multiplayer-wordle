@@ -1,14 +1,10 @@
-using Autofac;
-using Newtonsoft.Json;
 using StackExchange.Redis;
-using Wordle.Aws.Common;
-using Wordle.Clock;
+using Wordle.Common;
 using Wordle.Events;
-using Wordle.Redis.Common;
 
 namespace Wordle.Redis.Publisher;
 
-public class RedisEventPublisher : IEventPublisher
+public class RedisEventPublisher : IAllEventHandlers
 {
     private readonly List<NameValueEntry> _baseKeys;
     private readonly IRedisPublisher _publisher;

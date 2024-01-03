@@ -1,8 +1,8 @@
 using System.Reactive.Concurrency;
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
+using Wordle.Api.Common;
 using Wordle.Apps.Common;
-using Wordle.Aws.Common;
 
 namespace Wordle.Api.Realtime;
 
@@ -10,20 +10,22 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        EnvironmentVariables.SetDefaultInstanceConfig(typeof(Program).Assembly.FullName, "d66c2093-964e-4f94-9a24-49e7b6cabfd2");
+        EnvironmentVariables.SetDefaultInstanceConfig(typeof(Program).Assembly.GetName().Name, "d66c2093-964e-4f94-9a24-49e7b6cabfd2");
 
         var builder = WebApplication.CreateBuilder(args);
         builder.Host.UseServiceProviderFactory(new AutofacServiceProviderFactory(x =>
         {
             var conf = new AutofacConfigurationBuilder(x);
             conf.AddDynamoDictionary();
-            conf.AddKafkaEventConsuming(EnvironmentVariables.InstanceType, EnvironmentVariables.InstanceId);
-            conf.AddDynamoPersistence();
+            conf.AddActiveMqEventConsumer(EnvironmentVariables.InstanceType, EnvironmentVariables.InstanceId, true);
+            conf.AddPostgresPersistence();
 
             conf.Callback(x =>
             {
-                x.RegisterType<EventConsumerBackgroundService>().As<IHostedService>().AsImplementedInterfaces().SingleInstance();
-                x.RegisterType<WordleTenantService>().As<IWordleTenantService>().AsImplementedInterfaces().SingleInstance();
+                x.RegisterType<WebsocketTenantService>()
+                    .As<IWebsocketTenantService>()
+                    .AsImplementedInterfaces()
+                    .SingleInstance();
             });
             
             conf.InitialiseDefaults();
@@ -54,28 +56,6 @@ public class Program
         });
         
         app.MapControllers();
-
         app.Run();
-    }
-}
-
-public class EventConsumerBackgroundService : IHostedService
-{
-    private readonly IEventConsumerService _consumerService;
-
-    public EventConsumerBackgroundService(IEventConsumerService svx)
-    {
-        _consumerService = svx;
-    }
-    
-    public async Task StartAsync(CancellationToken cancellationToken)
-    {
-        await _consumerService.RunAsync(cancellationToken);
-    }
-
-    public Task StopAsync(CancellationToken cancellationToken)
-    {
-        // do nothing
-        return Task.CompletedTask;
     }
 }

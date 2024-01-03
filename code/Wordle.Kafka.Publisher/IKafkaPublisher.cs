@@ -6,9 +6,17 @@ using Nito.AsyncEx;
 using Microsoft.Extensions.Logging;
 using Wordle.Clock;
 using Wordle.Events;
-using Wordle.Kafka.Common;
 
 namespace Wordle.Kafka.Publisher;
+
+public class KafkaEventPublisherSettings
+{
+    public string BootstrapServers { get; init; }
+    public string Topic { get; init; }
+    
+    public string InstanceType { get; init; }
+    public string InstanceId { get; init; }
+}
 
 public interface IKafkaPublisher
 {
@@ -18,13 +26,13 @@ public interface IKafkaPublisher
 
 public class KafkaPublisher : IKafkaPublisher
 {
-    private readonly KafkaSettings _settings;
+    private readonly KafkaEventPublisherSettings _settings;
     private readonly IClock _clock;
     private readonly ILogger<KafkaPublisher> _logger;
 
     private IProducer<Null,string> _producer;
 
-    public KafkaPublisher(KafkaSettings settings, IClock clock, ILogger<KafkaPublisher> logger)
+    public KafkaPublisher(KafkaEventPublisherSettings settings, IClock clock, ILogger<KafkaPublisher> logger)
     {
         _settings = settings;
         _clock = clock;

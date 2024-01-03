@@ -1,6 +1,6 @@
 namespace Wordle.Events;
 
-public class BaseEvent : IEvent
+public abstract class BaseEvent : IEvent
 {
     public Guid Id { get; private set; } = Ulid.NewUlid().ToGuid();
     

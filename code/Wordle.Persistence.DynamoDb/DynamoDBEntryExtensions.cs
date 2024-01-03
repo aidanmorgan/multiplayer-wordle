@@ -1,10 +1,7 @@
-using System.Globalization;
-using Amazon.DynamoDBv2.DataModel;
 using Amazon.DynamoDBv2.DocumentModel;
-using Amazon.Runtime.Internal.Endpoints.StandardLibrary;
 using Wordle.Common;
 
-namespace Wordle.Persistence.Dynamo;
+namespace Wordle.Persistence.DynamoDb;
 
 public static class DynamoDBEntryExtensions
 {

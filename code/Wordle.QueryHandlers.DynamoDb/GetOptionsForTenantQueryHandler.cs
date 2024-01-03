@@ -2,10 +2,10 @@
 using MediatR;
 using Wordle.Common;
 using Wordle.Model;
-using Wordle.Persistence.Dynamo;
+using Wordle.Persistence.DynamoDb;
 using Wordle.Queries;
 
-namespace Wordle.QueryHandlers.Dynamo;
+namespace Wordle.QueryHandlers.DynamoDb;
 
 public class GetOptionsForTenantQueryHandler : IRequestHandler<GetOptionsForTenantQuery, Options?>
 {

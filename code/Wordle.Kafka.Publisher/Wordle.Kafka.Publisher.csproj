@@ -9,14 +9,15 @@
     <ItemGroup>
       <PackageReference Include="Autofac" Version="7.1.0" />
       <PackageReference Include="Confluent.Kafka" Version="2.3.0" />
+      <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
       <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
       <PackageReference Include="Nito.AsyncEx" Version="5.1.2" />
       <PackageReference Include="Serilog" Version="3.1.1" />
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Wordle.Aws.Common\Wordle.Aws.Common.csproj" />
-      <ProjectReference Include="..\Wordle.Kafka.Common\Wordle.Kafka.Common.csproj" />
+      <ProjectReference Include="..\Wordle.Common\Wordle.Common.csproj" />
+      <ProjectReference Include="..\Wordle.Events\Wordle.Events.csproj" />
       <ProjectReference Include="..\Wordle.Clock\Wordle.Clock.csproj" />
     </ItemGroup>
 

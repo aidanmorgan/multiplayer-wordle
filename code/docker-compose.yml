@@ -6,15 +6,19 @@ services:
       dockerfile: Wordle.Api.Public/Dockerfile
       args:
         - BUILD_CONFIGURATION=Development
-    env_file: 
-      - .development.env
-      - .sensitive.env
+    env_file:
+      - .development-docker.env
+      - .sensitive-docker.env
     environment:
       - ASPNETCORE_URLS=http://[::]:5100
+      - INSTANCE_ID=f14e672b-3912-4c98-9e67-da2612944151
     volumes:
       - $HOME/.aws/credentials:/home/app/.aws/credentials:ro
     ports:
       - 5100:5100
+    links: 
+      - activemq
+      - postgres
     networks:
       - wordle-local
       
@@ -26,14 +30,18 @@ services:
       args:
         - BUILD_CONFIGURATION=Development
     env_file:
-      - .development.env
-      - .sensitive.env
+      - .development-docker.env
+      - .sensitive-docker.env
     environment:
       - ASPNETCORE_URLS=http://[::]:5200
+      - INSTANCE_ID=98456bad-464e-42d8-a0fc-48ea7d494ae5
     volumes:
       - $HOME/.aws/credentials:/home/app/.aws/credentials:ro
     ports:
       - 5200:5200
+    links:
+      - activemq
+      - postgres
     networks:
       - wordle-local
 
@@ -45,91 +53,109 @@ services:
       args:
         - BUILD_CONFIGURATION=Development
     env_file:
-      - .development.env
-      - .sensitive.env
+      - .development-docker.env
+      - .sensitive-docker.env
     environment:
       - ASPNETCORE_URLS=http://[::]:5300
+      - INSTANCE_ID=c596347c-e72f-4e61-9803-8dd407110872 
+      - IMAGES_BASEDIRECTORY=/var/lib/wordle-images
     volumes:
       - $HOME/.aws/credentials:/home/app/.aws/credentials:ro
+      - images-data:/var/lib/wordle-images:r
     ports:
       - 5300:5300
+    links:
+      - activemq
+      - postgres    
     networks:
       - wordle-local
   
-  event-handler:
-    image: aidanmorgan/wordle-eventhandler
+  game-event-processor:
+    image: aidanmorgan/wordle-gameeventprocessor
     build:
       context: .
       dockerfile: Wordle.Apps.GameEventProcessor/Dockerfile
       args:
         - BUILD_CONFIGURATION=Development
     env_file:
-      - .development.env      
-      - .sensitive.env
+      - .development-docker.env
+      - .sensitive-docker.env
+    environment:
+      - INSTANCE_ID=bb1bfeb6-8cf9-46cc-a87e-d4553e555662
     volumes:
       - $HOME/.aws/credentials:/home/app/.aws/credentials:ro  
+    links:
+      - activemq
+      - postgres    
     networks:
       - wordle-local
   
-  timeout-handler:
-    image: aidanmorgan/wordle-timeouthandler
-    build:
-      context: .
-      dockerfile: Wordle.Apps.TimeoutProcessor/Dockerfile
-      args:
-        - BUILD_CONFIGURATION=Development
-    env_file:
-      - .development.env
-      - .sensitive.env
-    volumes:
-      - $HOME/.aws/credentials:/home/app/.aws/credentials:ro
-    networks:
-      - wordle-local
-
-
   board-generator:
     image: aidanmorgan/wordle-boardgenerator
-    
     build:
       context: .
       dockerfile: Wordle.Apps.BoardGenerator/Dockerfile
       args:
         - BUILD_CONFIGURATION=Development
     env_file:
-      - .development.env
-      - .sensitive.env
+      - .development-docker.env
+      - .sensitive-docker.env
+    environment:
+      - IMAGES_BASEDIRECTORY=/var/lib/wordle-images
+      - INSTANCE_ID=577c51ab-e2bc-4bc7-8cf6-e04b917076e4        
     volumes:
       - $HOME/.aws/credentials:/home/app/.aws/credentials:ro
-      - ./Wordle.Apps.BoardGenerator/deps:/usr/share/fonts:ro        
+      - ./Wordle.Apps.BoardGenerator/deps:/usr/share/fonts:ro  
+      - images-data:/var/lib/wordle-images:rw     
+    links:
+      - activemq
+      - postgres
     networks:
       - wordle-local
 
-  redis:
-    image: redis:latest
-    command: redis-server --save 60 1
+  activemq:
+    image: rmohr/activemq
+    hostname: activemq-wordle
     env_file:
-      - .development.env
-      - .sensitive.env    
+      - .development-docker.env
+      - .sensitive-docker.env
     ports:
-      - 6379:6379    
+      - 61616:61616
+      - 8161:8161
+      - 5672:5672
+    volumes:
+      - ../config/activemq:/mnt/conf
+      - activemq-data:/mnt/data
     networks:
-      - wordle-local
+      wordle-local:
+        aliases:
+          - activemq
+          - wordle-activemq
 
   postgres:
     image: postgres:latest
+    hostname: wordle-postgres
     env_file:
-      - .development.env
-      - .sensitive.env
+      - .development-docker.env
+      - .sensitive-docker.env
     environment:
       - PGDATA=/var/lib/postgresql/data/pgdata
     ports:
       - 5432:5432
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    networks:
+      wordle-local:
+        aliases:
+          - postgres
+          - wordle-postgres
+
 
 
 volumes:
   postgres-data:
+  images-data:
+  activemq-data:
 
 
 networks:

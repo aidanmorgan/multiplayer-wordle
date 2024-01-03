@@ -11,7 +11,7 @@ public class RealTimeController : Controller
     [ProducesResponseType(StatusCodes.Status101SwitchingProtocols)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task Subscribe( 
-        [FromServices]IWordleTenantService service, 
+        [FromServices]IWebsocketTenantService service, 
         [FromServices] IHostApplicationLifetime applicationLifetime,
         [FromServices] Serilog.ILogger logger,
         [FromRoute]string tenantId)

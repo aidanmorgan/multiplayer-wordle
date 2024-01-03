@@ -14,7 +14,7 @@ using Wordle.Queries;
 
 namespace Wordle.Api.Realtime;
 
-public interface IWordleTenantService : 
+public interface IWebsocketTenantService : 
     INotificationHandler<GuessAdded>, 
     INotificationHandler<NewRoundStarted>, 
     INotificationHandler<RoundExtended>, 
@@ -25,7 +25,7 @@ public interface IWordleTenantService :
     Task AddClient(string tenantId, WebSocket webSocket, ConnectionInfo httpContextConnection, CancellationToken ct);
 }
 
-public class WordleTenantService : IWordleTenantService
+public class WebsocketTenantService : IWebsocketTenantService
 {
     // TODO : this is actually the dynamo content leaking and we need to do something about that
     public const string TenantPrefix = "tenant#web#";
@@ -34,9 +34,9 @@ public class WordleTenantService : IWordleTenantService
     private readonly IScheduler _scheduler = new EventLoopScheduler();
     private readonly IGuessDecimator _guessDecimator;
     private readonly IMediator _mediator;
-    private readonly ILogger<WordleTenantService> _logger;
+    private readonly ILogger<WebsocketTenantService> _logger;
 
-    public WordleTenantService(IMediator mediator, IGuessDecimator decimator, ILogger<WordleTenantService> logger)
+    public WebsocketTenantService(IMediator mediator, IGuessDecimator decimator, ILogger<WebsocketTenantService> logger)
     {
         _mediator = mediator;
         _guessDecimator = decimator;

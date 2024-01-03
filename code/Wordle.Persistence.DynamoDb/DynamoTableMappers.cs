@@ -1,12 +1,7 @@
-using System.Globalization;
-using System.Runtime.Serialization;
-using System.Security.Cryptography;
-using Amazon.DynamoDBv2.DocumentModel;
-using Amazon.DynamoDBv2.Model;
 using Wordle.Common;
 using Wordle.Model;
 
-namespace Wordle.Persistence.Dynamo;
+namespace Wordle.Persistence.DynamoDb;
 
 public class DynamoMappers : IDynamoMappers
 {

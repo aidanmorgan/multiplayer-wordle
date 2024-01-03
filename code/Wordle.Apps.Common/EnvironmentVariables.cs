@@ -6,8 +6,8 @@ public static class EnvironmentVariables
 {
     public static readonly List<string> EnvironmentFiles =
     [
-        ".sensitive.env",
-        ".development.env"
+        ".sensitive-local.env",
+        ".development-local.env"
     ];
 
     public static readonly string WordleEnvSearchPathsEnvName = "WORDLE_ENV_SEARCH_PATHS";
@@ -70,7 +70,6 @@ public static class EnvironmentVariables
     public static string TimeoutQueueUrl => Environment.GetEnvironmentVariable("TIMEOUT_QUEUE_URL");
     public static string BoardGeneratorQueueUrl => Environment.GetEnvironmentVariable("BOARD_GENERATOR_QUEUE_URL");
     public static string EventBridgeName => Environment.GetEnvironmentVariable("EVENTBRIDGE_NAME");
-
     
     public static string BoardBucketName = Environment.GetEnvironmentVariable("BOARD_BUCKET_NAME");
     
@@ -84,7 +83,16 @@ public static class EnvironmentVariables
     public static string KafkaEventTopic => Environment.GetEnvironmentVariable("KAFKA_EVENT_TOPIC");
     public static string RedisServer => Environment.GetEnvironmentVariable("REDIS_SERVER");
     public static string RedisTopic => Environment.GetEnvironmentVariable("REDIS_TOPIC");
-    public static string PostgresConnectionString => Environment.GetEnvironmentVariable("POSTGRES_CONNECTIONSTRING");
+    public static string ImagesDirectory => Environment.GetEnvironmentVariable("IMAGES_BASEDIRECTORY");
+    public static string EmptyGridImageUrl => Environment.GetEnvironmentVariable("EMPTY_GRID_IMAGE_URL");
+    public static string ActiveMqBrokerUrl => Environment.GetEnvironmentVariable("ACTIVEMQ_BROKER_URL");
+    public static string PostgresHost => Environment.GetEnvironmentVariable("POSTGRES_HOST");
+    public static string PostgresUser => Environment.GetEnvironmentVariable("POSTGRES_USER");
+    public static string PostgresPassword => Environment.GetEnvironmentVariable("POSTGRES_PASSWORD");
+    public static string PostgresDatabase => Environment.GetEnvironmentVariable("POSTGRES_DB");
+    
+    public static string PostgresConnectionString => $"Host={PostgresHost};Username={PostgresUser};Password={PostgresPassword};Database={PostgresDatabase}";
+
 
     public static void SetDefault(string key, string value)
     {

@@ -105,6 +105,33 @@ public class GameController : ControllerBase
         
         return new JsonResult(session);
     }
+    
+    [HttpGet("/v1/tenants/{tenantId}/board")]
+    [ProducesResponseType<Options>((int)HttpStatusCode.OK)]
+    [ProducesResponseType((int)HttpStatusCode.NotFound)]
+    [Produces("image/png")]
+    public async Task<IActionResult> GetBoard(string tenantId,
+        [FromServices]IBoardImageHandler imageHandler)
+    {
+        var sessionId = await _mediator.Send(new GetActiveSessionForTenantQuery("web", tenantId));
+        if (!sessionId.HasValue)
+        {
+            _logger.LogError("Could not find Session with Tenant {TenantId}", tenantId);
+            return new NotFoundResult();
+        }
+
+        var res = (await _mediator.Send(new GetSessionByIdQuery(sessionId.Value)
+        {
+            IncludeRounds = false,
+            IncludeOptions = true,
+            IncludeWord = false
+        }));
+
+        // either there's an active round, or we have the round that is the last one played for the game
+        var roundId = res.Session.ActiveRoundId ?? res.Rounds.Last()?.Id;
+        return await imageHandler.GetImageForBoard(res.Session.Id, roundId, res.Rounds.Select(x => (Guid?)x.Id).ToList().IndexOf(roundId));
+    }
+    
 
     [HttpGet("/v1/tenants/{tenantId}/options")]
     [ProducesResponseType<Options>((int)HttpStatusCode.OK)]

@@ -1,7 +1,7 @@
 ﻿using Wordle.Common;
 using Wordle.Model;
 
-namespace Wordle.Persistence.Dynamo;
+namespace Wordle.Persistence.DynamoDb;
 
 public static class SessionExtensions
 {

@@ -5,11 +5,19 @@ using Newtonsoft.Json;
 using Polly;
 using Polly.Retry;
 using Microsoft.Extensions.Logging;
-using Wordle.Aws.Common;
-using Wordle.Kafka.Common;
+using Wordle.Common;
 using Wordle.Events;
 
 namespace Wordle.Kafka.Consumer;
+
+public class KafkaEventConsumerSettings
+{
+    public string BootstrapServers { get; init; }
+    public string Topic { get; init; }
+    
+    public string InstanceType { get; init; }
+    public string InstanceId { get; init; }
+}
 
 public class KafkaEventConsumerService : IEventConsumerService
 {
@@ -44,7 +52,7 @@ public class KafkaEventConsumerService : IEventConsumerService
 
     private readonly IMediator _mediator;
     private readonly ILogger<KafkaEventConsumerService> _logger;
-    private readonly KafkaSettings _settings;
+    private readonly KafkaEventConsumerSettings _settings;
 
     private const int RetryCount = 10;
 
@@ -57,7 +65,7 @@ public class KafkaEventConsumerService : IEventConsumerService
             c.CloseConsumer();
         });
 
-    public KafkaEventConsumerService(KafkaSettings settings, IMediator mediator, ILogger<KafkaEventConsumerService> logger)
+    public KafkaEventConsumerService(KafkaEventConsumerSettings settings, IMediator mediator, ILogger<KafkaEventConsumerService> logger)
     {
         _settings = settings;
         _mediator = mediator;

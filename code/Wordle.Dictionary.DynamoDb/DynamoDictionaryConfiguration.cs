@@ -1,7 +1,7 @@
 using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.DocumentModel;
 
-namespace Wordle.Aws.DictionaryImpl;
+namespace Wordle.Dictionary.DynamoDb;
 
 public class DynamoDictionaryConfiguration
 {

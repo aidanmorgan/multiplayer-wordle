@@ -1,10 +1,10 @@
 namespace Wordle.Redis.Common;
 
-public class RedisSettings
+public abstract class RedisSettings
 {
-    public string RedisHost { get; set; }
-    public string RedisTopic { get; set; }
+    public string RedisHost { get; init; }
+    public string RedisTopic { get; init; }
     
-    public string InstanceType { get; set; }
-    public string InstanceId { get; set; }
+    public string InstanceType { get; init; }
+    public string InstanceId { get; init; }
 }

@@ -1,4 +1,5 @@
 using System.Threading.RateLimiting;
+using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.RateLimiting;
 using Wordle.Apps.Common;
@@ -10,15 +11,23 @@ public class Program
     public const string EventSourceType = "PublicApi";
     public static void Main(string[] args)
     {
-        EnvironmentVariables.SetDefaultInstanceConfig(typeof(Program).Assembly.FullName, "76846c80-17ab-480c-ba65-0cec7086552a");
+        EnvironmentVariables.SetDefaultInstanceConfig(typeof(Program).Assembly.GetName().Name, "76846c80-17ab-480c-ba65-0cec7086552a");
 
         var builder = WebApplication.CreateBuilder(args);
         builder.Host.UseServiceProviderFactory(new AutofacServiceProviderFactory(x =>
         {
             var conf = new AutofacConfigurationBuilder(x);
-            conf.AddRedisEventPublisher(EventSourceType, EnvironmentVariables.InstanceId);
+            conf.AddActiveMqEventPublisher(EventSourceType, EnvironmentVariables.InstanceId, true);
             conf.AddPostgresPersistence();
             conf.AddPostgresDictionary();
+
+            conf.Callback(x =>
+            {
+                x.RegisterType<LocalDiskImageHandler>()
+                    .As<IBoardImageHandler>()
+                    .WithParameter(new PositionalParameter(0, EnvironmentVariables.ImagesDirectory))
+                    .SingleInstance();
+            });
             
             conf.InitialiseDefaults();
         }));

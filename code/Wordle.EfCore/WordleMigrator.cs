@@ -3,11 +3,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Wordle.EfCore;
 
-public class EfMigrator : IStartable
+public class WordleMigrator : IStartable
 {
-    private WordleEfCoreSettings _context;
+    private readonly WordleEfCoreSettings _context;
 
-    public EfMigrator(WordleEfCoreSettings context)
+    public WordleMigrator(WordleEfCoreSettings context)
     {
         _context = context;
     }
