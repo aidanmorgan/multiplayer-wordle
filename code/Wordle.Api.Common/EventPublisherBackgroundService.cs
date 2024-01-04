@@ -9,6 +9,7 @@ public class EventPublisherBackgroundService : IHostedService
     private readonly IEventPublisherService _publisherService;
     private readonly CancellationTokenSource _cancellationToken = new CancellationTokenSource();
     private readonly ILogger<EventPublisherBackgroundService> _logger;
+    private Task _task;
 
     public EventPublisherBackgroundService(IEventPublisherService svx, ILogger<EventPublisherBackgroundService> logger)
     {
@@ -19,7 +20,8 @@ public class EventPublisherBackgroundService : IHostedService
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         _logger.LogInformation("Starting {InterfaceName} ({ImplementationName})...", typeof(IEventPublisherService).Name, _publisherService.GetType().Name);
-        await _publisherService.RunAsync(_cancellationToken.Token);
+        _task = _publisherService.RunAsync(_cancellationToken.Token);
+        _publisherService.ReadySignal.Wait(cancellationToken);
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)

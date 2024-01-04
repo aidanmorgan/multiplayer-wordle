@@ -17,13 +17,29 @@ public class GetGuessesForRoundQueryHandler : IRequestHandler<GetGuessesForRound
 
     public async Task<List<Guess>> Handle(GetGuessesForRoundQuery request, CancellationToken cancellationToken)
     {
-        var guesses = await _context.Connection.QueryAsync<Guess>(
-            "SELECT * FROM guesses WHERE roundid = @id",
-            new
-            {
-                Id = request.RoundId
-            });
+        if (request.IgnoreAfter.HasValue)
+        {
+            var guesses = await _context.Connection.QueryAsync<Guess>(
+                "SELECT * FROM guesses WHERE roundid = @id AND timestamp <= @time",
+                new
+                {
+                    Id = request.RoundId,
+                    Time = request.IgnoreAfter.Value
+                }
+            );
 
-        return guesses.ToList();
+            return guesses?.ToList() ?? [];
+        }
+        else
+        {
+            var guesses = await _context.Connection.QueryAsync<Guess>(
+                "SELECT * FROM guesses WHERE roundid = @id",
+                new
+                {
+                    Id = request.RoundId
+                });
+
+            return guesses.ToList() ?? [];
+        }
     }
 }

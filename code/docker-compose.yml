@@ -147,9 +147,10 @@ services:
       - .sensitive-docker.env
     ports:
       - 61616:61616
+      - 8161:8161
     volumes:
       - ../config/activemq:/opt/activemq/conf:rw
-      - activemq-data:/opt/activemq/data
+      - activemq-data:/opt/activemq/data:rw
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:61616/ || exit 1"]
       interval: 5s

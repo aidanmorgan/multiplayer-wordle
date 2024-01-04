@@ -7,13 +7,15 @@ using Wordle.Events;
 
 namespace Wordle.ActiveMq.Consumer;
 
-public class ActiveMqEventConsumerSettings : ActiveMqSettings
+public class ActiveMqEventConsumerOptions : ActiveMqOptions
 {
     public string InstanceType { get; init; }
     
     public string InstanceId { get; init; }
     
     public string ActiveMqUri { get; init; }
+
+    public ManualResetEventSlim ReadySignal { get; init; } = new ManualResetEventSlim(false);
 
     // how long to wait before attempting to reconnect the service back to the broker
     public TimeSpan ServiceRetryDelay { get; init; } = TimeSpan.FromSeconds(5);
@@ -54,5 +56,8 @@ public class ActiveMqEventConsumerSettings : ActiveMqSettings
 
     // the 
     public List<Type> EventTypesToMonitor { get; set; } = EventUtil.GetAllEventTypes();
-
+    
+    // how long we should reasonably wait for all of the required consumers to start and be in a listening state before
+    // we shut down and try agin.
+    public TimeSpan MaximumConsumerInitialiseTime { get; set; } = TimeSpan.FromSeconds(5);
 }

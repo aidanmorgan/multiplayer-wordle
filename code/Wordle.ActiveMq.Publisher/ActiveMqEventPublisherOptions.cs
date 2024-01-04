@@ -1,4 +1,5 @@
 using Apache.NMS;
+using Apache.NMS.ActiveMQ;
 using Microsoft.Extensions.Logging;
 using Polly;
 using Polly.Retry;
@@ -6,11 +7,14 @@ using Wordle.ActiveMq.Common;
 
 namespace Wordle.ActiveMq.Publisher;
 
-public class ActiveMqEventPublisherSettings : ActiveMqSettings
+public class ActiveMqEventPublisherOptions : ActiveMqOptions
 {
     public string InstanceType { get; init; }
     public string InstanceId { get; init; }
     public string ActiveMqUri { get; init; }
+    
+    public ManualResetEventSlim ReadySignal { get; init; } = new ManualResetEventSlim(false);
+
     public TimeSpan EventTimeToLive { get; init; } = TimeSpan.FromHours(2);
 
     public TimeSpan ServiceRetryDelay { get; init; } = TimeSpan.FromSeconds(5);
@@ -33,6 +37,7 @@ public class ActiveMqEventPublisherSettings : ActiveMqSettings
     
     public AsyncRetryPolicy ProducerPolicy =>
     Policy.Handle<NMSException>()
+        .Or<ConnectionClosedException>()
         .WaitAndRetryAsync(ProducerRetryCount, (x) => ProducerRetryDelay,             
             onRetry: (x, i, c) =>
             {

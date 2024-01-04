@@ -218,13 +218,13 @@ public class AutofacConfigurationBuilder
 
     public AutofacConfigurationBuilder AddKafkaEventConsuming(string instanceType, string instanceId)
     {
-        _builder.RegisterInstance(new KafkaEventConsumerSettings()
+        _builder.RegisterInstance(new KafkaEventConsumerOptions()
         {
             BootstrapServers = EnvironmentVariables.KafkaBootstrapServers,
             Topic = EnvironmentVariables.KafkaEventTopic,
             InstanceType = instanceType,
             InstanceId = instanceId
-        }).As<KafkaEventConsumerSettings>();
+        }).As<KafkaEventConsumerOptions>();
 
         _builder
             .RegisterType<KafkaEventConsumerService>()
@@ -323,13 +323,13 @@ public class AutofacConfigurationBuilder
 
     public AutofacConfigurationBuilder AddActiveMqEventPublisher(string instanceType, string instanceId, bool useHostedService = false)
     {
-        _builder.RegisterInstance(new ActiveMqEventPublisherSettings()
+        _builder.RegisterInstance(new ActiveMqEventPublisherOptions()
             {
                 ActiveMqUri = EnvironmentVariables.ActiveMqBrokerUrl,
                 InstanceType = instanceType,
                 InstanceId = instanceId
             })
-            .As<ActiveMqEventPublisherSettings>()
+            .As<ActiveMqEventPublisherOptions>()
             .SingleInstance();
 
         _builder.RegisterType<ActiveMqEventPublisherService>()
@@ -354,7 +354,7 @@ public class AutofacConfigurationBuilder
 
     public AutofacConfigurationBuilder AddActiveMqEventConsumer(string instanceType, string instanceId, bool useHostedService = false)
     {
-        var settings = new ActiveMqEventConsumerSettings()
+        var settings = new ActiveMqEventConsumerOptions()
         {
             ActiveMqUri = EnvironmentVariables.ActiveMqBrokerUrl,
             InstanceType = instanceType,
@@ -362,7 +362,7 @@ public class AutofacConfigurationBuilder
         };
 
         _builder.RegisterInstance(settings)
-            .As<ActiveMqEventConsumerSettings>()
+            .As<ActiveMqEventConsumerOptions>()
             .OnActivating(x =>
             {
                 var handlers = x.Context

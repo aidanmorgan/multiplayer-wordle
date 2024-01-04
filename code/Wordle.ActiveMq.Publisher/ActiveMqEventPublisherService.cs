@@ -11,17 +11,21 @@ using Wordle.Common;
 using Wordle.Events;
 using IStartable = Autofac.IStartable;
 
+using static Wordle.ActiveMq.Common.ActiveMqUtil;
+
 namespace Wordle.ActiveMq.Publisher;
 
 public class ActiveMqEventPublisherService : IEventPublisherService
 {
-    private readonly ActiveMqEventPublisherSettings _settings;
+    private readonly ActiveMqEventPublisherOptions _options;
     private readonly IClock _clock;
     private readonly ILogger<ActiveMqEventPublisherService> _logger;
     
-    public ActiveMqEventPublisherService(ActiveMqEventPublisherSettings settings, IClock clock, ILogger<ActiveMqEventPublisherService> logger)
+    public ManualResetEventSlim ReadySignal => _options.ReadySignal;
+    
+    public ActiveMqEventPublisherService(ActiveMqEventPublisherOptions options, IClock clock, ILogger<ActiveMqEventPublisherService> logger)
     {
-        _settings = settings;
+        _options = options;
         _clock = clock;
         _logger = logger;
     }
@@ -40,49 +44,57 @@ public class ActiveMqEventPublisherService : IEventPublisherService
         }
 
         var context = new Context().Initialise(_logger);
-        var result = await _settings.ServicePolicy.ExecuteAndCaptureAsync(async (c,ct) =>
+        var result = await _options.ServicePolicy.ExecuteAndCaptureAsync(async (c,ct) =>
         {
             var serviceCancel = new CancellationTokenSource();
             
-            IConnectionFactory factory = new NMSConnectionFactory(_settings.ActiveMqUri);
-            var connection = await factory.CreateConnectionAsync("artemis", "artemis");
-            await connection.StartAsync();
-            
-            var session = await connection.CreateSessionAsync();
+            IConnectionFactory factory = new NMSConnectionFactory(_options.ActiveMqUri);
 
             var tasks = new List<Task>();
 
             foreach (var type in EventUtil.GetAllEventTypes())
             {
-                var topicName = $"topic://VirtualTopic.{ActiveMqSettings.TopicNamer(type)}";
-                var destination = (ITopic)SessionUtil.GetDestination(session, topicName);
-                
-                _logger.LogInformation("Creating producer for Event topic {TopicName}", topicName);
-                
                 tasks.Add(Task.Run(async () =>
                 {
+                    IConnection connection = null;
+                    ISession session = null;
+                    IMessageProducer producer = null;
+                    
                     try
                     {
-                        var producer = await session.CreateProducerAsync(destination);
+                        connection = await factory.CreateConnectionAsync("artemis", "artemis");
+                        await connection.StartAsync();
+
+                        session = await connection.CreateSessionAsync();
+
+                        var topicName = $"topic://VirtualTopic.{ActiveMqOptions.TopicNamer(type)}";
+                        var destination = (ITopic)SessionUtil.GetDestination(session, topicName);
+
+                        _logger.LogInformation("Creating producer for Event topic {TopicName}", topicName);
+
+
+                        producer = await session.CreateProducerAsync(destination);
                         await Producer(type, producer, session, serviceCancel.Token).ConfigureAwait(false);
                     }
-                    catch (Exception x)
+                    finally
                     {
-                        int i = 0;
+                        await CloseQuietly(producer, _logger);
+                        await CloseQuietly(session, _logger);
+                        await CloseQuietly(connection, _logger);
                     }
                 }, serviceCancel.Token));
             }
 
             try
             {
+                _options.ReadySignal.Set();
+                _logger.LogInformation($"{nameof(ActiveMqEventPublisherService)} has started and is ready to publish events...");
                 Task.WaitAny(tasks.ToArray(), ct);
             }
             catch (OperationCanceledException) { }
 
             if (tasks.Any(x => x.IsFaulted))
             {
-                try
-                {
                     // we haven't been asked to shut the service down, so we need to kill off the background threads
                     // and then re-start them again.
                     //
@@ -90,17 +102,12 @@ public class ActiveMqEventPublisherService : IEventPublisherService
                     if (!ct.IsCancellationRequested)
                     {
                         await serviceCancel.CancelAsync();
-                        Task.WaitAll(tasks.ToArray(), _settings.ProducerThreadCancelWait);
+                        Task.WaitAll(tasks.ToArray(), _options.ProducerThreadCancelWait);
 
                         throw new AggregateException(tasks
                             .Where(x => x.IsFaulted)
                             .Select(x => x.Exception)!);
                     }
-                }
-                finally
-                {
-                    await Cleanup(connection, session);
-                }
             }
         }, context, token);
 
@@ -117,7 +124,7 @@ public class ActiveMqEventPublisherService : IEventPublisherService
     private async Task Producer(Type type, IMessageProducer producer, ISession session, CancellationToken serviceCancel)
     {
         var ctx = new Context().Initialise(_logger);
-        var result = await _settings.ProducerPolicy.ExecuteAndCaptureAsync(async (c, ct) =>
+        var result = await _options.ProducerPolicy.ExecuteAndCaptureAsync(async (c, ct) =>
         {
             try
             {
@@ -131,13 +138,13 @@ public class ActiveMqEventPublisherService : IEventPublisherService
                         continue;
                     }
 
-                    if (ev.EventSourceType == _settings.InstanceType)
+                    if (ev.EventSourceType == _options.InstanceType)
                     {
                         continue;
                     }
 
-                    ev.EventSourceType = _settings.InstanceType;
-                    ev.EventSourceId = _settings.InstanceId;
+                    ev.EventSourceType = _options.InstanceType;
+                    ev.EventSourceId = _options.InstanceId;
                     ev.Timestamp = _clock.UtcNow();
 
                     var payload = JsonConvert.SerializeObject(ev);
@@ -150,7 +157,7 @@ public class ActiveMqEventPublisherService : IEventPublisherService
                     message.Properties["JMSXGroupID"] = ev.Tenant;
 
                     await producer.SendAsync(message, MsgDeliveryMode.Persistent, MsgPriority.Normal,
-                        _settings.EventTimeToLive);
+                        _options.EventTimeToLive);
 
                     _logger.LogInformation("Published: {Payload} via ActiveMQ", payload);
                 }

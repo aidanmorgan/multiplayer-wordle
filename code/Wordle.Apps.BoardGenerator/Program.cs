@@ -60,12 +60,12 @@ public class Program
 
     private void Run()
     {
-        var eps = _eventPublisherService.RunAsync(_systenShutdown.Token);
-        var ecs = _eventConsumerService.RunAsync(_systenShutdown.Token);
-
-        var all = new Task[] { eps, ecs };
+        var backgroundTasks = new Dictionary<string,Task>() { 
+            {nameof(IEventConsumerService), Task.Run(async () => await _eventConsumerService.RunAsync(_systenShutdown.Token)) }, 
+            {nameof(IEventPublisherService), Task.Run(async () => await _eventPublisherService.RunAsync(_systenShutdown.Token))}, 
+        };
         
-        Task.WaitAny(all);
+        Task.WaitAny(backgroundTasks.Select(x => x.Value).ToArray());
 
         // if we get here and the cancellation token hasn't been requested it means one of the background threads
         // has died, which means we now want to kill the remaining threads so we can try and shut down cleanly.
@@ -73,22 +73,24 @@ public class Program
         {
             _logger.LogInformation("Attempting clean shutdown. Will take {TotalSeconds} seconds", MaxCleanShutdownWait.TotalSeconds);
             _systenShutdown.Cancel();
-            Task.WaitAll(all.Where(x => !x.IsFaulted).ToArray(), MaxCleanShutdownWait);
+            Task.WaitAll(backgroundTasks
+                .Select(x => x.Value)
+                .Where(x => !x.IsFaulted).ToArray(), MaxCleanShutdownWait);
         }
         
-        if (eps.IsFaulted)
+        if (backgroundTasks.Any(x => x.Value.IsFaulted))
         {
-            _logger.LogCritical(eps.Exception, "Exiting...");
+            backgroundTasks
+                .Where(x => x.Value.IsFaulted)
+                .ToList()
+                .ForEach(x =>
+                {
+                    _logger.LogCritical(x.Value.Exception, "Background service {ServiceName} failed, SHUTTING DOWN", x.Key);
+                });
         }
-
-        if (ecs.IsFaulted)
+        else
         {
-            _logger.LogCritical(ecs.Exception, "Exiting...");
-        }
-        
-        if(!eps.IsFaulted && !ecs.IsFaulted)
-        {
-            _logger.LogInformation("Exiting cleanly....");
+            _logger.LogInformation("Exiting cleanly...");
         }
     }
 }

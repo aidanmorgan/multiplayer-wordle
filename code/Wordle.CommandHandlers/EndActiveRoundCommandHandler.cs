@@ -29,6 +29,8 @@ public class EndActiveRoundCommandHandler : IRequestHandler<EndActiveRoundComman
 
     public async Task<Unit> Handle(EndActiveRoundCommand request, CancellationToken cancellationToken)
     {
+        var now = _clock.UtcNow();
+        
         var res = await _mediator.Send(new GetSessionByIdQuery(request.SessionId));
         if (res == null)
         {
@@ -82,14 +84,15 @@ public class EndActiveRoundCommandHandler : IRequestHandler<EndActiveRoundComman
             throw new EndActiveRoundCommandException($"Cannot end active round with id {round.Id} as it is not ACTIVE.");
         }
 
-        var guesses = await _mediator.Send(new GetGuessesForRoundQuery(round.Id), cancellationToken);
+        var roundEndWithTolerance = session.ActiveRoundEnd.Value.Add(TimeSpan.FromSeconds(options.RoundEndToleranceSeconds));
+        var guesses = await _mediator.Send(new GetGuessesForRoundQuery(round.Id, roundEndWithTolerance), cancellationToken);
         var uow = _uowFactory.Create();
         
         if (!request.Force)
         {
             // if we are attempting to end the round but the check comes in "slightly" early, then we should just
             // allow it to happen anyway.
-            var secondsInFuture = session.ActiveRoundEnd.Value.Subtract(_clock.UtcNow()).TotalSeconds;
+            var secondsInFuture = session.ActiveRoundEnd.Value.Subtract(now).TotalSeconds;
             if ( secondsInFuture> options.RoundEndToleranceSeconds)
             {
                 throw new EndActiveRoundCommandException($"Cannot end active Round{session.ActiveRoundId} for Session {session.Id} as it is {secondsInFuture} seconds in the future.");
@@ -106,11 +109,14 @@ public class EndActiveRoundCommandHandler : IRequestHandler<EndActiveRoundComman
             // I need to play the game a bunch more times to try and determine which version of the logic "feels" better,
             // but from a purely logical (and also trying to address a defect) scenario this does seem to make the most 
             // sense - mainly because now the round end time is determined in only one place. SRP baby.
-            DateTimeOffset? lastGuess = guesses
-                .Where(x => x.Timestamp < session.ActiveRoundEnd.Value.Add(TimeSpan.FromSeconds(options.RoundEndToleranceSeconds)))
-                .Select(x => x.Timestamp)
-                .OrderDescending()
-                .FirstOrDefault(null);
+            DateTimeOffset? lastGuess = guesses.Count > 0
+                ? guesses
+                    .Where(x => x.Timestamp < session.ActiveRoundEnd.Value.Add(TimeSpan.FromSeconds(options.RoundEndToleranceSeconds)))
+                    .Select(x => x.Timestamp)
+                    .OrderDescending()
+                    .First()
+                : null;
+            
             double differenceToRoundEnd = double.MaxValue;
             if (lastGuess.HasValue && session.ActiveRoundEnd.Value > lastGuess)
             {
@@ -127,11 +133,11 @@ public class EndActiveRoundCommandHandler : IRequestHandler<EndActiveRoundComman
             {
                 long numExtensions = (int)
                     Math.Floor(
-                        ((_clock.UtcNow() - round.CreatedAt).TotalSeconds - options.InitialRoundLength) /
+                        ((now - round.CreatedAt).TotalSeconds - options.InitialRoundLength) /
                         options.RoundExtensionLength);
                 
                 var maximumRoundDuration = options.InitialRoundLength + (options.RoundExtensionLength * options.MaximumRoundExtensions);
-                session.ActiveRoundEnd = _clock.UtcNow().Add(TimeSpan.FromSeconds(options.RoundExtensionLength));
+                session.ActiveRoundEnd = now.Add(TimeSpan.FromSeconds(options.RoundExtensionLength));
                 
                 // if we are allowed to add another extension AND adding the extension doesn't make the round go longer than it is allowed to
                 // then add the extension to the round
@@ -143,7 +149,7 @@ public class EndActiveRoundCommandHandler : IRequestHandler<EndActiveRoundComman
                     
                     if (guesses.Count < options.MinimumAnswersRequired)
                     {
-                        await _mediator.Publish(new RoundExtended(session.Tenant, session.Id, round.Id, session.ActiveRoundEnd.Value, RoundExtensionReason.NotEnoughGuesses), cancellationToken);
+                        await _mediator.Publish(new RoundExtended(session.Tenant, session.Id, round.Id, session.ActiveRoundEnd.Value, RoundExtensionReason.NOT_ENOUGH_GUESSES), cancellationToken);
 
                         _logger.LogInformation(
                             "Extending Round {RoundId} as the end criteria is unmet. Next check: {SessionActiveRoundEnd}",
@@ -151,7 +157,7 @@ public class EndActiveRoundCommandHandler : IRequestHandler<EndActiveRoundComman
                     }
                     else if (differenceToRoundEnd <= options.RoundExtensionWindow)
                     {
-                        await _mediator.Publish(new RoundExtended(session.Tenant, session.Id, round.Id, session.ActiveRoundEnd.Value, RoundExtensionReason.LateArrivingGuess), cancellationToken);
+                        await _mediator.Publish(new RoundExtended(session.Tenant, session.Id, round.Id, session.ActiveRoundEnd.Value, RoundExtensionReason.LATE_ARRIVING_GUESS), cancellationToken);
 
                         _logger.LogInformation(
                             "Extending Round {RoundId} as the last guess was submitted at {GuessTime} which was within the {Window} limit. Next check: {SessionActiveRoundEnd}",

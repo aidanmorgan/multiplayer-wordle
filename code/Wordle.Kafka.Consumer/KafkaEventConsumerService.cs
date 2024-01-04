@@ -10,19 +10,13 @@ using Wordle.Events;
 
 namespace Wordle.Kafka.Consumer;
 
-public class KafkaEventConsumerSettings
-{
-    public string BootstrapServers { get; init; }
-    public string Topic { get; init; }
-    
-    public string InstanceType { get; init; }
-    public string InstanceId { get; init; }
-}
-
 public class KafkaEventConsumerService : IEventConsumerService
 {
     private static readonly IDictionary<string, Type> KnownEventTypes;
-    
+
+    public ManualResetEventSlim ReadySignal => throw new NotImplementedException();
+
+
     static KafkaEventConsumerService()
     {
         KnownEventTypes = new Dictionary<string, Type>();
@@ -52,7 +46,7 @@ public class KafkaEventConsumerService : IEventConsumerService
 
     private readonly IMediator _mediator;
     private readonly ILogger<KafkaEventConsumerService> _logger;
-    private readonly KafkaEventConsumerSettings _settings;
+    private readonly KafkaEventConsumerOptions _options;
 
     private const int RetryCount = 10;
 
@@ -65,16 +59,16 @@ public class KafkaEventConsumerService : IEventConsumerService
             c.CloseConsumer();
         });
 
-    public KafkaEventConsumerService(KafkaEventConsumerSettings settings, IMediator mediator, ILogger<KafkaEventConsumerService> logger)
+    public KafkaEventConsumerService(KafkaEventConsumerOptions options, IMediator mediator, ILogger<KafkaEventConsumerService> logger)
     {
-        _settings = settings;
+        _options = options;
         _mediator = mediator;
         _logger = logger;
     }
     
     public async Task RunAsync(CancellationToken token)
     {
-        _logger.LogInformation("Receiving events from Topic: {SettingsTopic} for bootstrap servers: {SettingsBootstrapServers}", _settings.Topic, _settings.BootstrapServers);
+        _logger.LogInformation("Receiving events from Topic: {SettingsTopic} for bootstrap servers: {SettingsBootstrapServers}", _options.Topic, _options.BootstrapServers);
 
         var ctx = new Context();
         
@@ -86,16 +80,16 @@ public class KafkaEventConsumerService : IEventConsumerService
                 {
                     var consumerConfig = new ConsumerConfig()
                     {
-                        BootstrapServers = _settings.BootstrapServers,
+                        BootstrapServers = _options.BootstrapServers,
 
                         // we use the following to control visibility to ensure that only one consumer is processing
                         // data from the queue at a time
-                        GroupId = _settings.InstanceType,
-                        GroupInstanceId = _settings.InstanceId,
+                        GroupId = _options.InstanceType,
+                        GroupInstanceId = _options.InstanceId,
                         EnableAutoCommit = true
                     };
                     var builder = new ConsumerBuilder<Ignore, string>(consumerConfig).Build();
-                    builder.Subscribe(_settings.Topic);
+                    builder.Subscribe(_options.Topic);
                     return builder;
                 });
                 
@@ -112,7 +106,7 @@ public class KafkaEventConsumerService : IEventConsumerService
                 }
 
                 var decoded = (IEvent?)JsonConvert.DeserializeObject(message.Message.Value, KnownEventTypes[typeName]);
-                if (decoded == null || decoded.EventSourceType == _settings.InstanceType)
+                if (decoded == null || decoded.EventSourceType == _options.InstanceType)
                 {
                     _logger.LogInformation("Ignoring Event {DecodedEventType}#{DecodedId} as it is from {EventSourceType}#{EventSourceId}", decoded.EventType, decoded.Id, decoded.EventSourceType, decoded.EventSourceId);
                     return;
@@ -123,7 +117,7 @@ public class KafkaEventConsumerService : IEventConsumerService
 
             if (result.Outcome == OutcomeType.Failure)
             {
-                _logger.LogCritical(result.FinalException, "Aborting processing. {InstanceType}#{InstanceId} had too many failures after {RetryCount} attempts", _settings.InstanceType, _settings.InstanceId, RetryCount);
+                _logger.LogCritical(result.FinalException, "Aborting processing. {InstanceType}#{InstanceId} had too many failures after {RetryCount} attempts", _options.InstanceType, _options.InstanceId, RetryCount);
             }
         }
     }

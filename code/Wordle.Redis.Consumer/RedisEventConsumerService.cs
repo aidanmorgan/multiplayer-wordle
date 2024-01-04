@@ -16,6 +16,8 @@ public class RedisEventConsumerService : IEventConsumerService
 {
     private static readonly IDictionary<string, Type> KnownEventTypes = new Dictionary<string, Type>();
     
+    public ManualResetEventSlim ReadySignal => throw new NotImplementedException();
+
     static RedisEventConsumerService()
     {
         var eventTypes = AppDomain.CurrentDomain.GetAssemblies()

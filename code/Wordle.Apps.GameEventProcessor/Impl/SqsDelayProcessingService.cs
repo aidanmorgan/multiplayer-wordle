@@ -26,6 +26,8 @@ public class SqsDelayProcessingService : IDelayProcessingService
     private readonly IAmazonSQS _sqs;
     private readonly ILogger<SqsDelayProcessingService> _logger;
 
+    public ManualResetEventSlim ReadySignal => throw new UnsupportedOperationException("Not implemented.");
+
     public SqsDelayProcessingService(IMediator mediator, IClock clock, IAmazonSQS sqs, ILogger<SqsDelayProcessingService> logger)
     {
         _mediator = mediator;

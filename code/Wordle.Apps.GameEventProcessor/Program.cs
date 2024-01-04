@@ -11,6 +11,7 @@ namespace Wordle.Apps.GameEventProcessor;
 public class Program 
 {
     private static readonly TimeSpan MaxCleanShutdownWait = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan MaximumStartTimeout = TimeSpan.FromSeconds(10);
     
     
     private readonly ILogger<Program> _logger;
@@ -36,13 +37,13 @@ public class Program
                 .SingleInstance()
                 .As<GameEventProcessorHandlers>();
 
-            x.RegisterInstance(new ActiveMqDelayProcessingSettings()
+            x.RegisterInstance(new ActiveMqDelayProcessingOptions()
             {
                 ActiveMqUri = EnvironmentVariables.ActiveMqBrokerUrl,
                 InstanceType = EnvironmentVariables.InstanceType,
                 InstanceId = EnvironmentVariables.InstanceId
             })
-            .As<ActiveMqDelayProcessingSettings>()
+            .As<ActiveMqDelayProcessingOptions>()
             .SingleInstance();
 
             x.RegisterType<ActiveMqDelayProcessingService>()
@@ -70,13 +71,13 @@ public class Program
 
     private void Run()
     {
-        var eventPublisher = _eventPublisherService.RunAsync(_systenShutdown.Token);
-        var eventConsumer = _eventConsumerService.RunAsync(_systenShutdown.Token);
-        var delayProcessing = _delayProcessingService.RunAsync(_systenShutdown.Token);
+        var backgroundTasks = new Dictionary<string,Task>() { 
+            {nameof(IEventConsumerService), Task.Run(async () => await _eventConsumerService.RunAsync(_systenShutdown.Token)) }, 
+            {nameof(IEventPublisherService), Task.Run(async () => await _eventPublisherService.RunAsync(_systenShutdown.Token))}, 
+            {nameof(IDelayProcessingService), Task.Run(async () => await _delayProcessingService.RunAsync(_systenShutdown.Token)) } 
+        };
         
-        var all = new Task[] { eventPublisher, eventConsumer, delayProcessing };
-        
-        Task.WaitAny(all);
+        Task.WaitAny(backgroundTasks.Values.ToArray());
 
         // if we get here and the cancellation token hasn't been requested it means one of the background threads
         // has died, which means we now want to kill the remaining threads so we can try and shut down cleanly.
@@ -84,25 +85,24 @@ public class Program
         {
             _logger.LogInformation("Attempting clean shutdown. Will take {TotalSeconds} seconds", MaxCleanShutdownWait.TotalSeconds);
             _systenShutdown.Cancel();
-            Task.WaitAll(all.Where(x => !x.IsFaulted).ToArray(), MaxCleanShutdownWait);
+            Task.WaitAll(backgroundTasks
+                .Where(x => !x.Value.IsFaulted)
+                .Select(x => x.Value)
+                .ToArray(), MaxCleanShutdownWait);
         }
 
-        if (eventPublisher.IsFaulted)
-        {
-            _logger.LogCritical(eventPublisher.Exception, "Event Publisher failed");            
-        } 
-        
-        if (eventConsumer.IsFaulted)
-        {
-            _logger.LogCritical(eventConsumer.Exception, "Event Consumer failed");            
-        }
 
-        if (delayProcessing.IsFaulted)
+        if (backgroundTasks.Any(x => x.Value.IsFaulted))
         {
-            _logger.LogCritical(delayProcessing.Exception, "Delay Processor failed");
+            backgroundTasks
+                .Where(x => x.Value.IsFaulted)
+                .ToList()
+                .ForEach(x =>
+                {
+                    _logger.LogCritical(x.Value.Exception, "Background service {ServiceName} failed, SHUTTING DOWN", x.Key);
+                });
         }
-
-        if (!eventConsumer.IsFaulted && !delayProcessing.IsFaulted && !eventPublisher.IsFaulted)
+        else
         {
             _logger.LogInformation("Exiting cleanly...");
         }

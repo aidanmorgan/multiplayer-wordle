@@ -54,6 +54,8 @@ public class SqsEventConsumerService : IEventConsumerService
             opts ?? new SqsEventConsumerOptions());
     }
     
+    public ManualResetEventSlim ReadySignal => throw new NotImplementedException();
+
     public SqsEventConsumerService(string sqsUrl, string sourceType, string instanceId, IAmazonSQS sqs, IMediator mediatr, ILogger<SqsEventConsumerService> logger,
         SqsEventConsumerOptions? options = null)
     {

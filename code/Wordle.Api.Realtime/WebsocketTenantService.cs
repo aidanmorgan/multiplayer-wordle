@@ -97,6 +97,13 @@ public class WebsocketTenantService : IWebsocketTenantService
 
     }
 
+    private static readonly IDictionary<RoundExtensionReason, string> ReasonCodes =
+        new Dictionary<RoundExtensionReason, string>()
+        {
+            { RoundExtensionReason.NOT_ENOUGH_GUESSES, "not_enough_guesses" },
+            { RoundExtensionReason.LATE_ARRIVING_GUESS, "late_arriving_guess" }
+        };
+    
     public async Task Handle(RoundExtended notification, CancellationToken cancellationToken)
     {
         var observable = GetObservableForTenant(notification.Tenant);
@@ -104,14 +111,15 @@ public class WebsocketTenantService : IWebsocketTenantService
         {
             return;
         }
-
+        
         ((Subject<ArraySegment<byte>>)observable)?.OnNextJson(new EventPayload()
         {
             GameId = notification.SessionId,
             Event = "round_extended",
             Value = new
             {  
-                RoundEndTime = notification.RoundExpiry
+                RoundEndTime = notification.RoundExpiry,
+                Reason = ReasonCodes[notification.Reason]
             }
         });
     }
