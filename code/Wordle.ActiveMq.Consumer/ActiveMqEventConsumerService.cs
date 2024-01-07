@@ -1,11 +1,10 @@
-﻿using System.Collections.Concurrent;
-using System.Text.Json;
+﻿using System.Text.Json;
+using Apache.NMS;
+using Apache.NMS.ActiveMQ;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Wordle.Common;
 using Wordle.Events;
-using Apache.NMS;
-using Apache.NMS.Util;
 using Polly;
 using Wordle.ActiveMq.Common;
 
@@ -37,7 +36,7 @@ public class ActiveMqEventConsumerService : IEventConsumerService
         var consumerCancellationToken = new CancellationTokenSource();
         var result = await _options.ServiceRetryPolicy.ExecuteAndCaptureAsync(async (c,ct) =>
         {
-            IConnectionFactory factory = new NMSConnectionFactory(_options.ActiveMqUri);
+            IConnectionFactory factory = new ConnectionFactory(_options.ActiveMqUri);
 
             var tasks = new List<Task>();
             var consumerReadySignals = new List<ManualResetEventSlim>();
@@ -69,8 +68,8 @@ public class ActiveMqEventConsumerService : IEventConsumerService
                         session = await connection.CreateSessionAsync();
 
                         var eventKey = ActiveMqOptions.TopicNamer(eventClass);
-                        var queueName = $"queue://Consumer.{activeMqSafeInstanceType}.VirtualTopic.{eventKey}";
-                        var queue = SessionUtil.GetDestination(session, queueName);
+                        var queueName = $"Consumer.{activeMqSafeInstanceType}.VirtualTopic.{eventKey}";
+                        var queue = await session.GetQueueAsync(queueName);
                         
                         var signal = new ManualResetEventSlim();
                         consumerReadySignals.Add(signal);
@@ -135,12 +134,12 @@ public class ActiveMqEventConsumerService : IEventConsumerService
         }
     }
     
-    private async Task RunConsumerAsync(string topicName, Type eventType, IMessageConsumer consumer, ManualResetEventSlim signal, CancellationToken token)
+    private async Task RunConsumerAsync(string queueName, Type eventType, IMessageConsumer consumer, ManualResetEventSlim signal, CancellationToken token)
     {
         var ctx = new Context().Initialise(_logger);
         var result = await _options.ConsumerRetryPolicy.ExecuteAndCaptureAsync(async (c, ct) =>
         {
-            _logger.LogInformation("Creating shared durable consumer for Topic {TopicName}", topicName);
+            _logger.LogInformation("Creating consumer for Queue {QueueName}", queueName);
             signal.Set();
             
             while (!ct.IsCancellationRequested)

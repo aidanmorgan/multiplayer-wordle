@@ -18,6 +18,7 @@
     </ItemGroup>
 
     <ItemGroup>
+        <PackageReference Include="Apache.NMS.ActiveMQ" Version="2.1.0" />
       <PackageReference Include="Autofac" Version="7.1.0" />
       <PackageReference Include="AWSSDK.SimpleNotificationService" Version="3.7.300.28" />
       <PackageReference Include="AWSSDK.SQS" Version="3.7.300.28" />

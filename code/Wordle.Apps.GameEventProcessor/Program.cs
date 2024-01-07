@@ -2,6 +2,7 @@
 
 using Autofac;
 using Microsoft.Extensions.Logging;
+using Wordle.Api.Common;
 using Wordle.Apps.Common;
 using Wordle.Apps.GameEventProcessor.Impl;
 using Wordle.Common;
@@ -20,7 +21,7 @@ public class Program
     private readonly IDelayProcessingService _delayProcessingService;
     private readonly CancellationTokenSource _systenShutdown;
 
-    public static void Main()
+    public static async Task Main()
     {
         EnvironmentVariables.SetDefaultInstanceConfig(typeof(Program).Assembly.GetName().Name, "d66c2093-964e-4f94-9a24-49e7b6cabfd2");
         
@@ -54,7 +55,7 @@ public class Program
         var container = configBuilder.Build();
         var program = container.Resolve<Program>(); 
         
-        program.Run();
+        await program.Run();
     }
     
     public Program(ILogger<Program> logger, IEventPublisherService eps, IEventConsumerService ecs, IDelayProcessingService dps)
@@ -69,29 +70,47 @@ public class Program
         AppDomain.CurrentDomain.ProcessExit += (sender, args) => _systenShutdown.Cancel(); 
     }
 
-    private void Run()
+    private async Task Run()
     {
+        // start all the background tasks
         var backgroundTasks = new Dictionary<string,Task>() { 
             {nameof(IEventConsumerService), Task.Run(async () => await _eventConsumerService.RunAsync(_systenShutdown.Token)) }, 
             {nameof(IEventPublisherService), Task.Run(async () => await _eventPublisherService.RunAsync(_systenShutdown.Token))}, 
             {nameof(IDelayProcessingService), Task.Run(async () => await _delayProcessingService.RunAsync(_systenShutdown.Token)) } 
         };
         
-        Task.WaitAny(backgroundTasks.Values.ToArray());
+        // do an initialisation wait check
+        var initialised = await Task.WhenAll(
+            Task.Run( () => _eventPublisherService.ReadySignal.Wait(MaximumStartTimeout)),
+            Task.Run( () => _eventConsumerService.ReadySignal.Wait(MaximumStartTimeout)),
+            Task.Run( () => _delayProcessingService.ReadySignal.Wait(MaximumStartTimeout))
+        );
 
-        // if we get here and the cancellation token hasn't been requested it means one of the background threads
-        // has died, which means we now want to kill the remaining threads so we can try and shut down cleanly.
+        if (!initialised.All(x => x))
+        {
+            _logger.LogCritical("Initialisation of background threads took too long, exiting.");
+            await _systenShutdown.CancelAsync();
+        }
+        else
+        {
+            // all background services have initialised inside the startup time, so we're now going to block processing
+            // of the main thread until one of the background services returns with an issue or the system shutdown kicks in
+            await Task.WhenAny(backgroundTasks.Values.ToArray());
+        }
+
         if (!_systenShutdown.IsCancellationRequested)
         {
             _logger.LogInformation("Attempting clean shutdown. Will take {TotalSeconds} seconds", MaxCleanShutdownWait.TotalSeconds);
-            _systenShutdown.Cancel();
+            await _systenShutdown.CancelAsync();
+            
+            
             Task.WaitAll(backgroundTasks
                 .Where(x => !x.Value.IsFaulted)
                 .Select(x => x.Value)
                 .ToArray(), MaxCleanShutdownWait);
         }
-
-
+        
+        // now check to see if any of the background tasks have returned a fault state, we're probably interested in that fact
         if (backgroundTasks.Any(x => x.Value.IsFaulted))
         {
             backgroundTasks

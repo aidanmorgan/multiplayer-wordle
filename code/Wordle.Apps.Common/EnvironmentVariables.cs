@@ -42,25 +42,32 @@ public static class EnvironmentVariables
                 .Select(x =>
                 {
                     var index = x.IndexOf("=", StringComparison.Ordinal);
-                    return new string[]
+
+                    var name = x.Substring(0, index);
+                    var value = x.Substring(index + 1);
+                    var isOverride = false;
+
+                    if (name.ToUpper().EndsWith("_OVERRIDE"))
                     {
-                        x.Substring(0, index),
-                        x.Substring(index + 1)
-                    };
+                        name = name.Substring(0, name.Length - "_OVERRIDE".Length);
+                        isOverride = true;
+                    }
+                    
+                    return new Tuple<string, string, bool>(name, value, isOverride);
                 })
                 .ToList()
                 .ForEach(x =>
                 {
-                    var existing = Environment.GetEnvironmentVariable(x[0]);
+                    var existing = Environment.GetEnvironmentVariable(x.Item1);
 
                     // if the environment variable is already set then we should definitely not
-                    // overwrite it, using the files is for convenience (because I am super lazy)
-                    // also the ordering of the files is important, we'll use the values from the 
+                    // overwrite it unless it's explicitly specified to be, using the files is for convenience
+                    // (because I am super lazy)also the ordering of the files is important, we'll use the values from the 
                     // .sensitive.env over the values for .development.env
-                    if (string.IsNullOrEmpty(existing))
+                    if (string.IsNullOrEmpty(existing) || x.Item3)
                     {
-                        Environment.SetEnvironmentVariable(x[0], x[1]);
-                        Console.WriteLine($"Overriding env {x[0]} with {x[1]} from file {file}.");
+                        Environment.SetEnvironmentVariable(x.Item1, x.Item2);
+                        Console.WriteLine($"Overriding env {x.Item1} with {x.Item2} from file {file}.");
                     }
                 });
         }

@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 using Apache.NMS;
-using Apache.NMS.Util;
+using Apache.NMS.ActiveMQ;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -43,10 +43,15 @@ public class ActiveMqDelayProcessingService : IDelayProcessingService
         var cleanInstanceType = new string(_options.InstanceType.Where(char.IsLetterOrDigit).ToArray());
         var serviceCancellation = new CancellationTokenSource();
         
+        _logger.LogInformation("Starting {ServiceName} connecting to {ActiveMqUri}", nameof(ActiveMqDelayProcessingService), _options.ActiveMqUri);
+        
+        
+        var factory = new ConnectionFactory(_options.ActiveMqUri);
+
         var all = new List<Task<PolicyResult>>()
         {
-            Task.Run(async () => await RunPublisherAsync(serviceCancellation), serviceCancellation.Token),
-            Task.Run(async () => await RunConsumerAsync(cleanInstanceType, serviceCancellation), serviceCancellation.Token)
+            Task.Run(async () => await RunPublisherAsync(factory, serviceCancellation), serviceCancellation.Token),
+            Task.Run(async () => await RunConsumerAsync(cleanInstanceType, factory, serviceCancellation), serviceCancellation.Token)
         };
 
         try
@@ -81,11 +86,9 @@ public class ActiveMqDelayProcessingService : IDelayProcessingService
             _logger.LogInformation($"Existing {nameof(ActiveMqDelayProcessingService)} cleanly.");
         }
     }
-
-    private Task<PolicyResult> RunConsumerAsync(string cleanInstanceType, CancellationTokenSource serviceCancellation)
+    
+    private Task<PolicyResult> RunConsumerAsync(string cleanInstanceType, IConnectionFactory factory, CancellationTokenSource serviceCancellation)
     {
-        IConnectionFactory factory = new NMSConnectionFactory(_options.ActiveMqUri);
-
         var consumeContext = new Context().Initialise(_logger);
         var consumeResult = _options.ConsumerRetryPolicy.ExecuteAndCaptureAsync(async (c, ct) =>
         {
@@ -94,8 +97,8 @@ public class ActiveMqDelayProcessingService : IDelayProcessingService
 
             var session = await connection.CreateSessionAsync();
             
-            var queueName = $"queue://Consumer.{cleanInstanceType}.VirtualTopic.{_options.TaskQueueName}";
-            var queue = (IQueue)SessionUtil.GetDestination(session, queueName);
+            var queueName = $"Consumer.{cleanInstanceType}.VirtualTopic.{_options.TaskQueueName}";
+            var queue = await session.GetQueueAsync(queueName);
             
             var consumer = await session.CreateConsumerAsync(queue);
             
@@ -126,19 +129,18 @@ public class ActiveMqDelayProcessingService : IDelayProcessingService
         return consumeResult;
     }
 
-    private Task<PolicyResult> RunPublisherAsync(CancellationTokenSource serviceCancellation)
+    private Task<PolicyResult> RunPublisherAsync(IConnectionFactory factory, CancellationTokenSource serviceCancellation)
     {
-        var connectionFactory = new NMSConnectionFactory(_options.ActiveMqUri);
         var publishContext = new Context().Initialise(_logger);
         
         var publisherResult = _options.PublishRetryPolicy.ExecuteAndCaptureAsync(async (c, ct) =>
         {
-            var connection = await connectionFactory.CreateConnectionAsync();
+            var connection = await factory.CreateConnectionAsync();
             await connection.StartAsync();
 
             var session = await connection.CreateSessionAsync();
-            var topicName = $"topic://VirtualTopic.{_options.TaskQueueName}";
-            var topicDestination = (ITopic)SessionUtil.GetDestination(session, topicName);
+            var topicName = $"VirtualTopic.{_options.TaskQueueName}";
+            var topicDestination = await session.GetTopicAsync(topicName);
             var producer = await session.CreateProducerAsync(topicDestination);
 
             _logger.LogInformation("Job scheduler publishing to {TopicName}", topicName);

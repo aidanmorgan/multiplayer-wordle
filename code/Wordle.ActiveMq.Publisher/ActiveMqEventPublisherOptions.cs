@@ -1,5 +1,4 @@
 using Apache.NMS;
-using Apache.NMS.ActiveMQ;
 using Microsoft.Extensions.Logging;
 using Polly;
 using Polly.Retry;
@@ -37,7 +36,6 @@ public class ActiveMqEventPublisherOptions : ActiveMqOptions
     
     public AsyncRetryPolicy ProducerPolicy =>
     Policy.Handle<NMSException>()
-        .Or<ConnectionClosedException>()
         .WaitAndRetryAsync(ProducerRetryCount, (x) => ProducerRetryDelay,             
             onRetry: (x, i, c) =>
             {

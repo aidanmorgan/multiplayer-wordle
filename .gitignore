@@ -400,3 +400,4 @@ FodyWeavers.xsd
 /code/.sensitive-docker.env
 /code/.sensitive-local.env
 /data/
+/code/.sensitive-docker-clustered.env

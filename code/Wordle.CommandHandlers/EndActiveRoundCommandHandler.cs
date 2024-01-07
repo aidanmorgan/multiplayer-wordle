@@ -137,7 +137,10 @@ public class EndActiveRoundCommandHandler : IRequestHandler<EndActiveRoundComman
                         options.RoundExtensionLength);
                 
                 var maximumRoundDuration = options.InitialRoundLength + (options.RoundExtensionLength * options.MaximumRoundExtensions);
-                session.ActiveRoundEnd = now.Add(TimeSpan.FromSeconds(options.RoundExtensionLength));
+
+                // if there are no guesses make the initial round the same legnth again, otherwise use the extension window only
+                var extension = guesses.Count == 0 ? options.InitialRoundLength : options.RoundExtensionLength;
+                session.ActiveRoundEnd = now.Add(TimeSpan.FromSeconds(extension));
                 
                 // if we are allowed to add another extension AND adding the extension doesn't make the round go longer than it is allowed to
                 // then add the extension to the round

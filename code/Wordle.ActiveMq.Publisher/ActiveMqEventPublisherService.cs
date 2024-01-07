@@ -1,15 +1,13 @@
 using System.Collections.Concurrent;
 using Apache.NMS;
-using Apache.NMS.Util;
+using Apache.NMS.ActiveMQ;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-using Nito.AsyncEx;
 using Polly;
 using Wordle.ActiveMq.Common;
 using Wordle.Clock;
 using Wordle.Common;
 using Wordle.Events;
-using IStartable = Autofac.IStartable;
 
 using static Wordle.ActiveMq.Common.ActiveMqUtil;
 
@@ -48,13 +46,16 @@ public class ActiveMqEventPublisherService : IEventPublisherService
         {
             var serviceCancel = new CancellationTokenSource();
             
-            IConnectionFactory factory = new NMSConnectionFactory(_options.ActiveMqUri);
+            IConnectionFactory factory = new ConnectionFactory(_options.ActiveMqUri);
+            
 
-            var tasks = new List<Task>();
+            var tasks = new List<Tuple<Task,ManualResetEventSlim>>();
 
             foreach (var type in EventUtil.GetAllEventTypes())
-            {
-                tasks.Add(Task.Run(async () =>
+            {                    
+                var initialisationSignal = new ManualResetEventSlim();
+
+                tasks.Add(new Tuple<Task, ManualResetEventSlim>(Task.Run(async () =>
                 {
                     IConnection connection = null;
                     ISession session = null;
@@ -62,39 +63,42 @@ public class ActiveMqEventPublisherService : IEventPublisherService
                     
                     try
                     {
-                        connection = await factory.CreateConnectionAsync("artemis", "artemis");
+                        connection = await factory.CreateConnectionAsync();
                         await connection.StartAsync();
-
+            
                         session = await connection.CreateSessionAsync();
 
-                        var topicName = $"topic://VirtualTopic.{ActiveMqOptions.TopicNamer(type)}";
-                        var destination = (ITopic)SessionUtil.GetDestination(session, topicName);
+                        var topicName = $"VirtualTopic.{ActiveMqOptions.TopicNamer(type)}";
+                        var destination = await session.GetTopicAsync(topicName);
 
                         _logger.LogInformation("Creating producer for Event topic {TopicName}", topicName);
-
 
                         producer = await session.CreateProducerAsync(destination);
                         await Producer(type, producer, session, serviceCancel.Token).ConfigureAwait(false);
                     }
                     finally
-                    {
+                    {    
                         await CloseQuietly(producer, _logger);
                         await CloseQuietly(session, _logger);
                         await CloseQuietly(connection, _logger);
                     }
-                }, serviceCancel.Token));
+                }, serviceCancel.Token), initialisationSignal));
             }
 
             try
             {
                 _options.ReadySignal.Set();
                 _logger.LogInformation($"{nameof(ActiveMqEventPublisherService)} has started and is ready to publish events...");
-                Task.WaitAny(tasks.ToArray(), ct);
+                Task.WaitAny(tasks.Select(x => x.Item1).ToArray(), ct);
             }
             catch (OperationCanceledException) { }
 
-            if (tasks.Any(x => x.IsFaulted))
+            if (tasks
+                .Select(x => x.Item1)
+                .Any(x => x.IsFaulted))
             {
+                    var toCancel = tasks.Select(x => x.Item1).ToList();
+                
                     // we haven't been asked to shut the service down, so we need to kill off the background threads
                     // and then re-start them again.
                     //
@@ -102,9 +106,9 @@ public class ActiveMqEventPublisherService : IEventPublisherService
                     if (!ct.IsCancellationRequested)
                     {
                         await serviceCancel.CancelAsync();
-                        Task.WaitAll(tasks.ToArray(), _options.ProducerThreadCancelWait);
+                        Task.WaitAll(toCancel.ToArray(), _options.ProducerThreadCancelWait);
 
-                        throw new AggregateException(tasks
+                        throw new AggregateException(toCancel
                             .Where(x => x.IsFaulted)
                             .Select(x => x.Exception)!);
                     }

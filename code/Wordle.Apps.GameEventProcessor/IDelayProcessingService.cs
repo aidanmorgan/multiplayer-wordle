@@ -1,7 +1,9 @@
 
+using Wordle.Api.Common;
+
 namespace Wordle.Apps.GameEventProcessor;
 
-public interface IDelayProcessingService
+public interface IDelayProcessingService 
 {
     ManualResetEventSlim ReadySignal { get; }
     

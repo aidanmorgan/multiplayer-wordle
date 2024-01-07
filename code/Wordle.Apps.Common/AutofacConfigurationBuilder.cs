@@ -82,10 +82,11 @@ public class AutofacConfigurationBuilder
         b.RegisterType<Clock.Clock>().As<IClock>().SingleInstance();
         b.RegisterType<GuessDecimator>().As<IGuessDecimator>().SingleInstance();
 
-        AddSqsClient(b);
-        AddSnsClient(b);
+//        AddSqsClient(b);
+//        AddSnsClient(b);
 
-        // add all of the mediatr stuff, as it's pretty much always used
+        // add all of the mediatr stuff, as it's pretty much always used - but allow the other builder calls to determine
+        // which mediatr things should be registered as they can be different for different apps
         var configuration = MediatRConfigurationBuilder
             .Create(
                 MediatrAssemblies.ToArray()
@@ -97,7 +98,6 @@ public class AutofacConfigurationBuilder
 
         b.RegisterMediatR(configuration);
     });
-
 
     public AutofacConfigurationBuilder(ContainerBuilder? i = null)
     {
