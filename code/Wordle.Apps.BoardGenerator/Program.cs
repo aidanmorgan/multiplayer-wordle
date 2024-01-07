@@ -51,6 +51,8 @@ public class Program
         _eventConsumerService = ecs;
         _logger = logger;
         
+        _logger.LogInformation("Starting {Name} with type: {Type} and id: {Id}", typeof(Program).Assembly.GetName(), EnvironmentVariables.InstanceType, EnvironmentVariables.InstanceId);
+        
         _systenShutdown = new CancellationTokenSource();
         AppDomain.CurrentDomain.ProcessExit += (sender, args) => _systenShutdown.Cancel(); 
 

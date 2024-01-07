@@ -72,6 +72,8 @@ public class Program
 
     private async Task Run()
     {
+        _logger.LogInformation("Starting {Name} with type: {Type} and id: {Id}", typeof(Program).Assembly.GetName(), EnvironmentVariables.InstanceType, EnvironmentVariables.InstanceId);
+
         // start all the background tasks
         var backgroundTasks = new Dictionary<string,Task>() { 
             {nameof(IEventConsumerService), Task.Run(async () => await _eventConsumerService.RunAsync(_systenShutdown.Token)) }, 

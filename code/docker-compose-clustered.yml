@@ -79,7 +79,7 @@ services:
     networks:
       - wordle-local
   
-  game-event-processor-1:
+  game-event-processor:
     image: aidanmorgan/wordle-gameeventprocessor
     build:
       context: .
@@ -89,57 +89,16 @@ services:
     env_file:
       - .development-docker-clustered.env
       - .sensitive-docker-clustered.env
-    environment:
-      - INSTANCE_ID=bb1bfeb6-8cf9-46cc-a87e-d4553e555662
     volumes:
       - $HOME/.aws/credentials:/home/app/.aws/credentials:ro  
+    deploy:
+      replicas: 5
+      mode: replicated
     links:
       - activemq-1
       - activemq-2
       - activemq-3
       - postgres   
-    networks:
-      - wordle-local
-  game-event-processor-2:
-    image: aidanmorgan/wordle-gameeventprocessor
-    build:
-      context: .
-      dockerfile: Wordle.Apps.GameEventProcessor/Dockerfile
-      args:
-        - BUILD_CONFIGURATION=Development
-    env_file:
-      - .development-docker-clustered.env
-      - .sensitive-docker-clustered.env
-    environment:
-      - INSTANCE_ID=e9cf7d4e-57a6-4e74-a585-2aea0069ba9e
-    volumes:
-      - $HOME/.aws/credentials:/home/app/.aws/credentials:ro
-    links:
-      - activemq-1
-      - activemq-2
-      - activemq-3
-      - postgres
-    networks:
-      - wordle-local
-  game-event-processor-3:
-    image: aidanmorgan/wordle-gameeventprocessor
-    build:
-      context: .
-      dockerfile: Wordle.Apps.GameEventProcessor/Dockerfile
-      args:
-        - BUILD_CONFIGURATION=Development
-    env_file:
-      - .development-docker-clustered.env
-      - .sensitive-docker-clustered.env
-    environment:
-      - INSTANCE_ID=d0fb61c3-37fe-4955-ac63-6ac2ee565dbc
-    volumes:
-      - $HOME/.aws/credentials:/home/app/.aws/credentials:ro
-    links:
-      - activemq-1
-      - activemq-2
-      - activemq-3
-      - postgres
     networks:
       - wordle-local
   
