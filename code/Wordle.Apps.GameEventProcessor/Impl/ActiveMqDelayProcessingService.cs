@@ -194,7 +194,7 @@ public class ActiveMqDelayProcessingService : IDelayProcessingService
     public async Task HandleTimeout(TimeoutPayload payload)
     {
         var dLockKey = _options.SessionLockKey(payload.SessionId);
-        await using (var dLock = await _lockProvider.TryAcquireLockAsync(dLockKey, _options.LockTimeout))
+        await using (var dLock = await _lockProvider.TryAcquireLockAsync(dLockKey, _options.DistributedLockTimeout))
         {
             if (dLock == null)
             {
@@ -203,13 +203,11 @@ public class ActiveMqDelayProcessingService : IDelayProcessingService
             
             try
             {
-                await _mediator.Send(new EndActiveRoundCommand(payload.SessionId, payload.SessionVersion,
-                    payload.RoundId, payload.RoundVersion));
+                await _mediator.Send(new EndActiveRoundCommand(payload.SessionId, payload.SessionVersion, payload.RoundId, payload.RoundVersion));
             }
             catch (EndActiveRoundCommandException x)
             {
-                _logger.LogError("Attempt to end Round {RoundId} for Session {SessionId} failed with message {Message}",
-                    payload.RoundId, payload.SessionId, x.Message);
+                _logger.LogError("Attempt to end Round {RoundId} for Session {SessionId} failed with message {Message}",payload.RoundId, payload.SessionId, x.Message);
             }
         }
     }

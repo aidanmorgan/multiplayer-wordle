@@ -74,7 +74,7 @@ public class Renderer : IRenderer
                         X = [ text_x_px.ToPixelUnit() ],
                         Y = [ text_y_px.ToPixelUnit() ], 
                         TextAnchor = SvgTextAnchor.Middle,
-                        FontFamily = renderOptions.fonts.First(),
+                        FontFamily = string.Join(", ", renderOptions.Fonts),
                         FontSize = renderOptions.FontSize.ToPixelUnit(),
                         Fill = renderOptions.FontColour.ToPaint(),
                         Text = $"{letter}".ToUpper(),

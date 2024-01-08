@@ -1,6 +1,4 @@
 using System.Reflection;
-using Amazon.DynamoDBv2;
-using Amazon.EventBridge;
 using Amazon.S3;
 using Amazon.SimpleNotificationService;
 using Amazon.SQS;
@@ -16,17 +14,14 @@ using Serilog.Sinks.SystemConsole.Themes;
 using Wordle.ActiveMq.Consumer;
 using Wordle.ActiveMq.Publisher;
 using Wordle.Api.Common;
-using Wordle.Aws.EventBridge;
 using Wordle.Clock;
 using Wordle.Common;
 using Wordle.Dictionary;
-using Wordle.Dictionary.DynamoDb;
 using Wordle.Dictionary.EfCore;
 using Wordle.EfCore;
 using Wordle.Events;
 using Wordle.Model;
 using Wordle.Persistence;
-using Wordle.Persistence.DynamoDb;
 using Wordle.Persistence.EfCore;
 using Wordle.QueryHandlers.EfCore;
 using Wordle.Render;
@@ -43,30 +38,10 @@ public class AutofacConfigurationBuilder
         // we assume these are always required as we will be generating
         typeof(Wordle.CommandHandlers.Usings).Assembly,
     ];
-
-    private static readonly Action<ContainerBuilder> AddDynamoDbClient = callOnlyOnce<ContainerBuilder>((b) =>
-    {
-        b.RegisterInstance(new AmazonDynamoDBClient()).As<IAmazonDynamoDB>().SingleInstance();
-    });
-
+    
     private static readonly Action<ContainerBuilder> AddS3Client = callOnlyOnce<ContainerBuilder>((b) =>
     {
         b.RegisterInstance(new AmazonS3Client()).As<IAmazonS3>().SingleInstance();
-    });
-
-    private static readonly Action<ContainerBuilder> AddEventBridgeClient = callOnlyOnce<ContainerBuilder>((b) =>
-    {
-        b.RegisterInstance(new AmazonEventBridgeClient()).As<IAmazonEventBridge>().SingleInstance();
-    });
-
-    private static readonly Action<ContainerBuilder> AddSqsClient = callOnlyOnce<ContainerBuilder>((b) =>
-    {
-        b.RegisterInstance(new AmazonSQSClient()).As<IAmazonSQS>().SingleInstance();
-    });
-
-    private static readonly Action<ContainerBuilder> AddSnsClient = callOnlyOnce<ContainerBuilder>((b) =>
-    {
-        b.RegisterInstance(new AmazonSimpleNotificationServiceClient()).As<IAmazonSimpleNotificationService>();
     });
 
     private static readonly Action<ContainerBuilder> InitialiseDefaultsCallback = callOnlyOnce<ContainerBuilder>((b) =>
@@ -105,24 +80,6 @@ public class AutofacConfigurationBuilder
         InitialiseDefaultsCallback(_builder);
     }
 
-    public AutofacConfigurationBuilder AddDynamoPersistence()
-    {
-        AddDynamoDbClient(_builder);
-
-        MediatrAssemblies.Add(typeof(QueryHandlers.DynamoDb.Usings).Assembly);
-
-        _builder.RegisterType<DynamoGameConfiguration>()
-            .As<DynamoGameConfiguration>()
-            .WithParameter(new TypedParameter(typeof(string),
-                EnvironmentVariables.GameDynamoTableName))
-            .SingleInstance();
-
-        _builder.RegisterInstance(new DynamoMappers()).As<IDynamoMappers>().SingleInstance();
-        _builder.RegisterType<DynamoGameUnitOfWorkFactory>().As<IGameUnitOfWorkFactory>().SingleInstance();
-
-        return this;
-    }
-
     public AutofacConfigurationBuilder AddPostgresPersistence(bool autoMigrate = true)
     {
         MediatrAssemblies.Add(typeof(Usings).Assembly);
@@ -141,23 +98,6 @@ public class AutofacConfigurationBuilder
 
         _builder.RegisterType<EfUnitOfWorkFactory>()
             .As<IGameUnitOfWorkFactory>()
-            .SingleInstance();
-
-        return this;
-    }
-
-    public AutofacConfigurationBuilder AddDynamoDictionary()
-    {
-        AddDynamoDbClient(_builder);
-
-        _builder.RegisterType<DynamoDictionaryConfiguration>()
-            .As<DynamoDictionaryConfiguration>()
-            .WithParameter(new TypedParameter(typeof(string),
-                EnvironmentVariables.DictionaryDynamoTableName))
-            .SingleInstance();
-
-        _builder.RegisterType<DynamoDbWordleDictionaryService>()
-            .As<IWordleDictionaryService>()
             .SingleInstance();
 
         return this;
@@ -201,39 +141,6 @@ public class AutofacConfigurationBuilder
     }
 
 
-    public AutofacConfigurationBuilder AddEventBridgePublishing(string instanceType, string instanceId)
-    {
-        AddEventBridgeClient(_builder);
-
-        _builder.RegisterType<EventBridgePublisher>()
-            .As<EventBridgePublisher>()
-            .WithParameter(new PositionalParameter(1, EnvironmentVariables.EventBridgeName))
-
-            // these are used to help with horizontal scaling, basically if we receive an event from the same instance
-            // type then we will ignore it and not process it because it's meant to go somewhere else
-            .WithParameter(new PositionalParameter(2, instanceType))
-            .WithParameter(new PositionalParameter(3, instanceId))
-            .SingleInstance();
-
-        MediatrAssemblies.Add(typeof(EventBridgePublisher).Assembly);
-
-
-        return this;
-    }
-
-    public AutofacConfigurationBuilder AddSqsEventConsuming(string url, string eventSource, string instanceId)
-    {
-        _builder.RegisterType<SqsEventConsumerService>().As<IEventConsumerService>()
-            .WithParameter(new PositionalParameter(0, url))
-            .WithParameter(new PositionalParameter(1, eventSource))
-            .WithParameter(new PositionalParameter(2, instanceId))
-            .As<SqsEventConsumerService>()
-            .SingleInstance();
-
-        MediatrAssemblies.Add(typeof(SqsEventConsumerService).Assembly);
-
-        return this;
-    }
     
     public AutofacConfigurationBuilder AddActiveMqEventPublisher(string instanceType, string instanceId, bool useHostedService = false)
     {
@@ -290,7 +197,7 @@ public class AutofacConfigurationBuilder
                             return [];
                         }
 
-                        // this is a little dodgy, but becase we do event publishing by hooking into the same mechanism
+                        // this is a little dodgy, but because we do event publishing by hooking into the same mechanism
                         // that we use to receive other events the inclusion of this interface basically means that we will
                         // always need all events - which really isn't ideal, so we intentionally remove this interface from the
                         // list.

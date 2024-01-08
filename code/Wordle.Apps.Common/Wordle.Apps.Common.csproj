@@ -12,15 +12,11 @@
       <ProjectReference Include="..\Wordle.ActiveMq.Consumer\Wordle.ActiveMq.Consumer.csproj" />
       <ProjectReference Include="..\Wordle.ActiveMq.Publisher\Wordle.ActiveMq.Publisher.csproj" />
       <ProjectReference Include="..\Wordle.Api.Common\Wordle.Api.Common.csproj" />
-      <ProjectReference Include="..\Wordle.Dictionary.DynamoDb\Wordle.Dictionary.DynamoDb.csproj" />
-      <ProjectReference Include="..\Wordle.Aws.EventBridge\Wordle.Aws.EventBridge.csproj" />
       <ProjectReference Include="..\Wordle.Dictionary.EfCore\Wordle.Dictionary.EfCore.csproj" />
       <ProjectReference Include="..\Wordle.EfCore\Wordle.EfCore.csproj" />
       <ProjectReference Include="..\Wordle.Clock\Wordle.Clock.csproj" />
       <ProjectReference Include="..\Wordle.CommandHandlers\Wordle.CommandHandlers.csproj" />
-      <ProjectReference Include="..\Wordle.Persistence.DynamoDb\Wordle.Persistence.DynamoDb.csproj" />
       <ProjectReference Include="..\Wordle.Persistence.EfCore\Wordle.Persistence.EfCore.csproj" />
-      <ProjectReference Include="..\Wordle.QueryHandlers.DynamoDb\Wordle.QueryHandlers.DynamoDb.csproj" />
       <ProjectReference Include="..\Wordle.QueryHandlers.EfCore\Wordle.QueryHandlers.EfCore.csproj" />
       <ProjectReference Include="..\Wordle.Render\Wordle.Render.csproj" />
     </ItemGroup>

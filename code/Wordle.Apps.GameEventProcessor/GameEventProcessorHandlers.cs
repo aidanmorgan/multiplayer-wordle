@@ -14,7 +14,8 @@ namespace Wordle.Apps.GameEventProcessor;
 
 public class GameEventProcessorHandlers : 
     INotificationHandler<RoundEnded>, 
-    INotificationHandler<NewRoundStarted>
+    INotificationHandler<NewRoundStarted>,
+    INotificationHandler<RoundExtended>
 {
     private readonly Guid _instance = Guid.NewGuid();
     private readonly IMediator _mediator;
@@ -39,7 +40,7 @@ public class GameEventProcessorHandlers :
     public async Task Handle(RoundEnded detail, CancellationToken cancellationToken)
     {
         var lockKey = _options.SessionLockKey(detail.SessionId);   
-        await using (var dLock = await _lockProvider.TryAcquireLockAsync(lockKey, _options.LockTimeout, cancellationToken))
+        await using (var dLock = await _lockProvider.TryAcquireLockAsync(lockKey, _options.DistributedLockTimeout, cancellationToken))
         {
             if (dLock == null)
             {
@@ -110,7 +111,7 @@ public class GameEventProcessorHandlers :
     public async Task Handle(NewRoundStarted n, CancellationToken cancellationToken)
     {
         var lockKey = _options.SessionLockKey(n.SessionId);
-        await using (var dLock = await _lockProvider.TryAcquireLockAsync(lockKey, _options.LockTimeout, cancellationToken))
+        await using (var dLock = await _lockProvider.TryAcquireLockAsync(lockKey, _options.DistributedLockTimeout, cancellationToken))
         {
             if (dLock == null)
             {
@@ -135,13 +136,20 @@ public class GameEventProcessorHandlers :
         }
     }
 
-    /*
-    // this isn't needed as we moved the round extension logic into the end round handler, that means that we no longer
-    // have to listen for this event as when it is generated this service will already have it enqueued
     public async Task Handle(RoundExtended n, CancellationToken cancellationToken)
     {
-        _logger.LogInformation($"RoundExtended - {n.Id}, Handler - {_instance}");
-        await _delayProcessingService.ScheduleRoundUpdate(n.SessionId, n.RoundId, n.RoundExpiry, cancellationToken);
+        await _delayProcessingService.ScheduleRoundUpdate(
+            new VersionId()
+            {
+                Id = n.SessionId,
+                Version = n.SessionVersion
+            }, new VersionId()
+            {
+                Id = n.RoundId,
+                Version = n.RoundVersion
+            },n.RoundExpiry, cancellationToken);
+        
+        _logger.LogInformation("RoundExtended: {RoundId}, Handler Instance: - {EventHandlerId}, Next Check: {Timestamp}", n.Id, _instance, n.RoundExpiry);
+
     }
-    */
 }

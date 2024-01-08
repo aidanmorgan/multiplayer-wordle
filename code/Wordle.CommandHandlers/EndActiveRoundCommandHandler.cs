@@ -178,7 +178,6 @@ public class EndActiveRoundCommandHandler : IRequestHandler<EndActiveRoundComman
         if (guesses.Count == 0)
         {
             round.State = RoundState.TERMINATED;
-
             session.State = SessionState.TERMINATED;
             session.ActiveRoundId = null;
             session.ActiveRoundEnd = null;

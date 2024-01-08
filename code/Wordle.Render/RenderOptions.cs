@@ -42,7 +42,8 @@ public class RenderOptions
 
     public int WordLength { get; private set; } = 1;
     public int NumGuesses { get; private set; } = 1;
-    public List<string> fonts = new List<string>() {"'Clear Sans'", "'Helvetica Neue'", "Arial", "sans-serif"};
+    
+    public readonly List<string> Fonts = ["'Clear Sans'", "'Helvetica Neue'", "Arial", "sans-serif"];
 
     private static void ConfigureFillStyles(RenderOptions opts)
     {
