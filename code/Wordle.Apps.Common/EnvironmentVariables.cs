@@ -78,51 +78,11 @@ public static class EnvironmentVariables
     public static string TimeoutQueueUrl => Environment.GetEnvironmentVariable("TIMEOUT_QUEUE_URL");
     public static string BoardGeneratorQueueUrl => Environment.GetEnvironmentVariable("BOARD_GENERATOR_QUEUE_URL");
     public static string EventBridgeName => Environment.GetEnvironmentVariable("EVENTBRIDGE_NAME");
-    
     public static string BoardBucketName = Environment.GetEnvironmentVariable("BOARD_BUCKET_NAME");
-    
     public static string GameDynamoTableName => Environment.GetEnvironmentVariable("GAME_TABLE");
     public static string DictionaryDynamoTableName => Environment.GetEnvironmentVariable("DICTIONARY_TABLE");
-
     public static bool IsDocker => Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "true";
-
-    private static string? _dockerInstanceId = null;
-    
-    public static string InstanceId
-    {
-        get
-        {
-            if (IsDocker)
-            {
-                if (string.IsNullOrEmpty(_dockerInstanceId))
-                {
-                   // if we are running in docker then the best instance identifier we can ask for is from docker itself 
-                    Process pProcess = new System.Diagnostics.Process()
-                    {
-                        StartInfo = new ProcessStartInfo()
-                        {
-                            FileName = "cat",
-                            Arguments = "/etc/hostname",
-                            UseShellExecute = false,
-                            RedirectStandardOutput = true
-                        }
-                    };
-
-                    pProcess.Start();
-                    _dockerInstanceId = pProcess.StandardOutput.ReadToEnd();
-                    pProcess.WaitForExit();
-                }
-
-                return _dockerInstanceId;
-
-            }
-            
-            return Environment.GetEnvironmentVariable("INSTANCE_ID") ?? Guid.NewGuid().ToString();
-        }
-    }
-
     public static string InstanceType => Environment.GetEnvironmentVariable("INSTANCE_TYPE");
-    
     public static string KafkaBootstrapServers => Environment.GetEnvironmentVariable("KAFKA_BOOTSTRAP_SERVERS");
     public static string KafkaEventTopic => Environment.GetEnvironmentVariable("KAFKA_EVENT_TOPIC");
     public static string RedisServer => Environment.GetEnvironmentVariable("REDIS_SERVER");
@@ -134,10 +94,47 @@ public static class EnvironmentVariables
     public static string PostgresUser => Environment.GetEnvironmentVariable("POSTGRES_USER");
     public static string PostgresPassword => Environment.GetEnvironmentVariable("POSTGRES_PASSWORD");
     public static string PostgresDatabase => Environment.GetEnvironmentVariable("POSTGRES_DB");
-    
     public static string PostgresConnectionString => $"Host={PostgresHost};Username={PostgresUser};Password={PostgresPassword};Database={PostgresDatabase}";
+    
+    
+    private static string? _dockerInstanceId = null;
+    
+    public static string InstanceId
+    {
+        get
+        {
+            // if we are running in docker then the best instance identifier we can ask for is from docker itself 
+            if (IsDocker)
+            {
+                if (string.IsNullOrEmpty(_dockerInstanceId))
+                {
+                    var catProcess = new Process()
+                    {
+                        StartInfo = new ProcessStartInfo()
+                        {
+                            FileName = "cat",
+                            Arguments = "/etc/hostname",
+                            UseShellExecute = false,
+                            RedirectStandardOutput = true
+                        }
+                    };
 
+                    catProcess.Start();
+                    _dockerInstanceId = catProcess.StandardOutput.ReadToEnd().TrimEnd();
+                    catProcess.WaitForExit();
+                    
+                    // just set this here just in case
+                    Environment.SetEnvironmentVariable("INSTANCE_ID", _dockerInstanceId);
+                }
 
+                return _dockerInstanceId;
+            }
+            
+            return Environment.GetEnvironmentVariable("INSTANCE_ID") ?? Guid.NewGuid().ToString();
+        }
+    }
+
+    
     public static void SetDefault(string key, string value)
     {
         var o = Environment.GetEnvironmentVariable(key);

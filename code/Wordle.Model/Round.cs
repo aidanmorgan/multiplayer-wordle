@@ -1,6 +1,6 @@
 namespace Wordle.Model;
 
-public class Round : IAggregate
+public class Round : IAggregate, IVersioned
 {
     public Guid Id { get; set; }
 
@@ -19,4 +19,6 @@ public class Round : IAggregate
         State = RoundState.INACTIVE;
         CreatedAt = DateTimeOffset.MinValue;
     }
+
+    public long Version { get; set; }
 }

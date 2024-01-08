@@ -1,6 +1,8 @@
 ﻿// See https://aka.ms/new-console-template for more information
 
 using Autofac;
+using Medallion.Threading;
+using Medallion.Threading.Postgres;
 using Microsoft.Extensions.Logging;
 using Wordle.Api.Common;
 using Wordle.Apps.Common;
@@ -11,8 +13,8 @@ namespace Wordle.Apps.GameEventProcessor;
 
 public class Program 
 {
-    private static readonly TimeSpan MaxCleanShutdownWait = TimeSpan.FromSeconds(5);
-    private static readonly TimeSpan MaximumStartTimeout = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan MaxCleanShutdownWait = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan MaximumStartTimeout = TimeSpan.FromSeconds(20);
     
     
     private readonly ILogger<Program> _logger;
@@ -20,20 +22,24 @@ public class Program
     private readonly IEventConsumerService _eventConsumerService;
     private readonly IDelayProcessingService _delayProcessingService;
     private readonly CancellationTokenSource _systenShutdown;
+    private readonly IInitialisationService _initialisationService;
 
     public static async Task Main()
     {
         EnvironmentVariables.SetDefaultInstanceConfig(typeof(Program).Assembly.GetName().Name, "d66c2093-964e-4f94-9a24-49e7b6cabfd2");
         
         var configBuilder = new AutofacConfigurationBuilder()
-            .AddPostgresPersistence()
-            .AddDynamoDictionary()
+            .AddPostgresPersistence(false)
             .AddActiveMqEventPublisher(EnvironmentVariables.InstanceType, EnvironmentVariables.InstanceId)
             .AddActiveMqEventConsumer(EnvironmentVariables.InstanceType, EnvironmentVariables.InstanceId);
 
         configBuilder.RegisterSelf(typeof(Program));
         configBuilder.Callback(x =>
         {
+            x.RegisterType<InitialisationService>()
+                .As<IInitialisationService>()
+                .SingleInstance();
+            
             x.RegisterType<GameEventProcessorHandlers>()
                 .SingleInstance()
                 .As<GameEventProcessorHandlers>();
@@ -50,6 +56,11 @@ public class Program
             x.RegisterType<ActiveMqDelayProcessingService>()
                 .As<IDelayProcessingService>()
                 .SingleInstance();
+
+            x.RegisterType<PostgresDistributedSynchronizationProvider>()
+                .As<IDistributedLockProvider>()
+                .WithParameter(new PositionalParameter(0, EnvironmentVariables.PostgresConnectionString))
+                .SingleInstance();
         });
         
         var container = configBuilder.Build();
@@ -58,10 +69,11 @@ public class Program
         await program.Run();
     }
     
-    public Program(ILogger<Program> logger, IEventPublisherService eps, IEventConsumerService ecs, IDelayProcessingService dps)
+    public Program(ILogger<Program> logger, IInitialisationService ins, IEventPublisherService eps, IEventConsumerService ecs, IDelayProcessingService dps)
     {
         _logger = logger;
 
+        _initialisationService = ins;
         _eventPublisherService = eps;
         _eventConsumerService = ecs;
         _delayProcessingService = dps;
@@ -85,7 +97,10 @@ public class Program
         var initialised = await Task.WhenAll(
             Task.Run( () => _eventPublisherService.ReadySignal.Wait(MaximumStartTimeout)),
             Task.Run( () => _eventConsumerService.ReadySignal.Wait(MaximumStartTimeout)),
-            Task.Run( () => _delayProcessingService.ReadySignal.Wait(MaximumStartTimeout))
+            Task.Run( () => _delayProcessingService.ReadySignal.Wait(MaximumStartTimeout)),
+            
+            // this is run once and then exits, so we should do it this loop rather that in the background tasks group
+            Task.Run(() => _initialisationService.RunAsync(_systenShutdown.Token))
         );
 
         if (!initialised.All(x => x))

@@ -57,7 +57,7 @@ public class WebsocketTenantService : IWebsocketTenantService
         }
         
         var guessesTask = _mediator.Send(new GetGuessesForRoundQuery(notification.RoundId), ct);
-        var sessionTask = _mediator.Send(new GetSessionByIdQuery(sessionId.Value), ct);
+        var sessionTask = _mediator.Send(new GetSessionByIdQuery(sessionId.Value.Id, null), ct);
         await Task.WhenAll(guessesTask, sessionTask);
 
         var guesses = guessesTask.Result;
@@ -253,10 +253,6 @@ public class WebsocketTenantService : IWebsocketTenantService
     /// </summary>
     private IObservable<ArraySegment<byte>>? GetObservableForTenant(string id, Func<IObservable<ArraySegment<byte>>> factory = null)
     {
-        if (!id.StartsWith("web#"))
-        {
-            id = $"web#{id}";
-        }
         try
         {
             _observablesLock.AcquireReaderLock(TimeSpan.FromSeconds(5));

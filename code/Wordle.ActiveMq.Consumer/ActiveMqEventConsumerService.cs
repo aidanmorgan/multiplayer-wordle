@@ -129,12 +129,11 @@ public class ActiveMqEventConsumerService : IEventConsumerService
                 connection = await factory.CreateConnectionAsync();
                 await connection.StartAsync();
 
-                session = await connection.CreateSessionAsync(AcknowledgementMode.ClientAcknowledge);
+                session = await connection.CreateSessionAsync(AcknowledgementMode.IndividualAcknowledge);
                 var queue = await session.GetQueueAsync(queueName);
 
                 consumer = await session.CreateConsumerAsync(queue);
                 signal.Set();
-
                 
                 _logger.LogInformation("Starting Consumer for Event queue {TopicName}", queueName);
 
@@ -152,7 +151,6 @@ public class ActiveMqEventConsumerService : IEventConsumerService
                     try
                     {
                         var @event = (IEvent)JsonSerializer.Deserialize(message.Text, eventType);
-
                         _logger.LogInformation("Received Event: {Event}", message.Text);
                         await _mediator.Publish(@event);
                     }
@@ -160,7 +158,6 @@ public class ActiveMqEventConsumerService : IEventConsumerService
                     {
                         await message.AcknowledgeAsync();
                     }
-
                 }
             }
             finally

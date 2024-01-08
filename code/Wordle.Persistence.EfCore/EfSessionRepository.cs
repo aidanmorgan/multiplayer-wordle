@@ -19,6 +19,8 @@ public class EfSessionRepository : ISessionRepository
 
     public Task UpdateAsync(Session val)
     {
+        val.Version += 1;
+        
         _sessions.Update(val);
         return Task.CompletedTask;
     }

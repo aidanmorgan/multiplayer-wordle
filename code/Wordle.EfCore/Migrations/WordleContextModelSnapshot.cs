@@ -124,6 +124,10 @@ namespace Wordle.EfCore.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("tiebreakerstrategy");
 
+                    b.Property<long>("Version")
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
                     b.Property<int>("WordLength")
                         .HasColumnType("integer")
                         .HasColumnName("wordlength");
@@ -161,6 +165,10 @@ namespace Wordle.EfCore.Migrations
                     b.Property<int>("State")
                         .HasColumnType("integer")
                         .HasColumnName("state");
+
+                    b.Property<long>("Version")
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
 
                     b.HasKey("Id")
                         .HasName("pk_rounds");
@@ -200,6 +208,10 @@ namespace Wordle.EfCore.Migrations
                         .IsRequired()
                         .HasColumnType("text[]")
                         .HasColumnName("usedletters");
+
+                    b.Property<long>("Version")
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
 
                     b.Property<string>("Word")
                         .IsRequired()

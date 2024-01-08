@@ -31,20 +31,19 @@ public class GameController : ControllerBase
     [ProducesResponseType((int)HttpStatusCode.Created)]
     public async Task<IActionResult> NewGame(string tenantId)
     {
-        var existingSession = await _mediator.Send(new GetActiveSessionForTenantQuery("web", tenantId));
+        var existingSession = await _mediator.Send(new GetActiveSessionForTenantQuery(tenantId));
         if (existingSession.HasValue)
         {
-            _logger.LogError("Could not find Session for Tenant web${TenantId}", tenantId);
+            _logger.LogError("Could not find Session for Tenant {TenantId}", tenantId);
             return new BadRequestResult();
         }
 
-        var options = (await _mediator.Send(new GetOptionsForTenantQuery("web", tenantId))) ?? new Options();
+        var options = (await _mediator.Send(new GetOptionsForTenantQuery(tenantId))) ?? new Options();
 
         try
         {
             var newSession =
                 await _mediator.Send(new CreateNewSessionCommand(
-                    "web",
                     tenantId,
                     await _dictionary.RandomWord(options),
                     options));
@@ -65,7 +64,7 @@ public class GameController : ControllerBase
     [ProducesResponseType((int)HttpStatusCode.Created)]
     public async Task<IActionResult> SubmitGuess(string tenantId, [FromBody] Guess g)
     {
-        var session = await _mediator.Send(new GetActiveSessionForTenantQuery("web", tenantId));
+        var session = await _mediator.Send(new GetActiveSessionForTenantQuery(tenantId));
         if (!session.HasValue)
         {
             _logger.LogError("Could not find Session with Tenant {TenantId}", tenantId);
@@ -74,7 +73,8 @@ public class GameController : ControllerBase
 
         try
         {
-            await _mediator.Send(new AddGuessToRoundCommand(session.Value, g.Username, g.Word, _clock.UtcNow()));
+            // don't have to use versions here, guesses are single-value and never updated
+            await _mediator.Send(new AddGuessToRoundCommand(session.Value.Id, session.Value.Version, g.Username, g.Word, _clock.UtcNow()));
             return new CreatedResult();
         }
         catch (CommandException x)
@@ -90,14 +90,14 @@ public class GameController : ControllerBase
     [Produces("application/json")]
     public async Task<IActionResult> GetSession(string tenantId)
     {
-        var sessionId = await _mediator.Send(new GetActiveSessionForTenantQuery("web", tenantId));
+        var sessionId = await _mediator.Send(new GetActiveSessionForTenantQuery(tenantId));
         if (!sessionId.HasValue)
         {
             _logger.LogError("Could not find Session with Tenant {TenantId}", tenantId);
             return new NotFoundResult();
         }
 
-        var session = (await _mediator.Send(new GetSessionByIdQuery(sessionId.Value)
+        var session = (await _mediator.Send(new GetSessionByIdQuery(sessionId.Value.Id, sessionId.Value.Version)
         {
             IncludeOptions = false,
             IncludeWord = false
@@ -113,14 +113,14 @@ public class GameController : ControllerBase
     public async Task<IActionResult> GetBoard(string tenantId,
         [FromServices]IBoardImageHandler imageHandler)
     {
-        var sessionId = await _mediator.Send(new GetActiveSessionForTenantQuery("web", tenantId));
+        var sessionId = await _mediator.Send(new GetActiveSessionForTenantQuery(tenantId));
         if (!sessionId.HasValue)
         {
             _logger.LogError("Could not find Session with Tenant {TenantId}", tenantId);
             return new NotFoundResult();
         }
 
-        var res = (await _mediator.Send(new GetSessionByIdQuery(sessionId.Value)
+        var res = (await _mediator.Send(new GetSessionByIdQuery(sessionId.Value.Id, sessionId.Value.Version)
         {
             IncludeRounds = false,
             IncludeOptions = true,
@@ -139,14 +139,14 @@ public class GameController : ControllerBase
     [Produces("application/json")]
     public async Task<IActionResult> GetOptions(string tenantId)
     {
-        var sessionId = await _mediator.Send(new GetActiveSessionForTenantQuery("web", tenantId));
+        var sessionId = await _mediator.Send(new GetActiveSessionForTenantQuery(tenantId));
         if (!sessionId.HasValue)
         {
             _logger.LogError("Could not find Session with Tenant {TenantId}", tenantId);
             return new NotFoundResult();
         }
 
-        var session = (await _mediator.Send(new GetSessionByIdQuery(sessionId.Value)
+        var session = (await _mediator.Send(new GetSessionByIdQuery(sessionId.Value.Id, sessionId.Value.Version)
         {
             IncludeRounds = false,
             IncludeOptions = true,
@@ -163,7 +163,7 @@ public class GameController : ControllerBase
     [Consumes("application/x-www-form-urlencoded")]
     public async Task<IActionResult> UpdateOptions(string tenantId, IFormCollection values)
     {
-        var options = await _mediator.Send(new GetOptionsForTenantQuery("web", tenantId)) ?? new Options();
+        var options = await _mediator.Send(new GetOptionsForTenantQuery(tenantId)) ?? new Options();
         
         
 

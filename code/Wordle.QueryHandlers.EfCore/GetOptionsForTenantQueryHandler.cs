@@ -19,13 +19,11 @@ public class GetOptionsForTenantQueryHandler:  IRequestHandler<GetOptionsForTena
 
     public async Task<Options?> Handle(GetOptionsForTenantQuery request, CancellationToken cancellationToken)
     {
-        var tenantId = $"{request.TenantType}#{request.TenantName}";
-
         var options = await _context.Connection.QueryAsync<Options>(
             "SELECT * FROM options WHERE tenantid = @tenantId AND sessionid IS NULL",
             new
             {
-                TenantId = tenantId
+                TenantId = request.TenantName
             });
         
 

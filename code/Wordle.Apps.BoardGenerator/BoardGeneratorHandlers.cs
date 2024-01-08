@@ -25,7 +25,7 @@ public class BoardGeneratorHandlers : INotificationHandler<RoundEnded>
 
     public async Task Handle(RoundEnded ev, CancellationToken token)
     {
-        var session = await _mediator.Send(new GetSessionByIdQuery(ev.SessionId), token);
+        var session = await _mediator.Send(new GetSessionByIdQuery(ev.SessionId, ev.SessionVersion), token);
         if (session == null)
         {
             _logger.LogError("Attempting to generate for Session {SessionId}, but could not load", ev.SessionId);

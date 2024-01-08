@@ -1,6 +1,6 @@
 namespace Wordle.Model;
 
-public class Options : IAggregate
+public class Options : IAggregate, IVersioned
 {
     // values below are based on either what wordle does by default, or are what "makes a sensible default" for
     // playing multiplayer wordle.
@@ -65,4 +65,6 @@ public class Options : IAggregate
             RoundEndToleranceSeconds = this.RoundEndToleranceSeconds
         };
     }
+
+    public long Version { get; set; } = 0;
 }

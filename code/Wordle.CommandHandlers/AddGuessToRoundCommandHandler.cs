@@ -25,7 +25,7 @@ public class AddGuessToRoundCommandHandler : IRequestHandler<AddGuessToRoundComm
 
     public async Task<Unit> Handle(AddGuessToRoundCommand request, CancellationToken cancellationToken)
     {
-        SessionQueryResult? queryResult = await _mediator.Send(new GetSessionByIdQuery(request.SessionId));
+        SessionQueryResult? queryResult = await _mediator.Send(new GetSessionByIdQuery(request.SessionId, request.SessionVersion));
         if (queryResult == null)
         {
             throw new CommandException($"Cannot load Session with Id {request.SessionId}.");
@@ -87,7 +87,7 @@ public class AddGuessToRoundCommandHandler : IRequestHandler<AddGuessToRoundComm
 //            await _mediator.Publish(new RoundExtended(session.Tenant, session.Id, round.Id, session.ActiveRoundEnd!.Value), cancellationToken);
 //        }
         
-        await _mediator.Publish(new GuessAdded(session.Tenant, guessId, round.Id, session.Id), cancellationToken);
+        await _mediator.Publish(new GuessAdded(session.Tenant, guessId, round.Id, round.Version, session.Id, session.Version), cancellationToken);
         
         
         return Unit.Value;

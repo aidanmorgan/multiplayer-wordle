@@ -7,7 +7,7 @@ using Wordle.Queries;
 
 namespace Wordle.QueryHandlers.EfCore;
 
-public class GetActiveSessionForTenantQueryHandler : IRequestHandler<GetActiveSessionForTenantQuery, Guid?>
+public class GetActiveSessionForTenantQueryHandler : IRequestHandler<GetActiveSessionForTenantQuery, VersionId?>
 {
     private readonly WordleEfCoreSettings _context;
 
@@ -16,17 +16,27 @@ public class GetActiveSessionForTenantQueryHandler : IRequestHandler<GetActiveSe
         _context = settings;
     }
 
-    public async Task<Guid?> Handle(GetActiveSessionForTenantQuery request, CancellationToken cancellationToken)
+    public async Task<VersionId?> Handle(GetActiveSessionForTenantQuery request, CancellationToken cancellationToken)
     {
-        var tenantId = $"{request.TenantType}#{request.TenantName}";
-
         var result = await _context.Connection.QueryAsync<Session>(
             "SELECT * FROM sessions WHERE state = @state AND tenant = @tenant ORDER BY createdat DESC", new
             {
                 State = SessionState.ACTIVE,
-                Tenant = tenantId
+                Tenant = request.TenantName
             });
 
-        return result.FirstOrDefault()?.Id;
+        var entry = result.FirstOrDefault();
+        if (entry == null)
+        {
+            return null;
+        }
+        else
+        {
+            return new VersionId()
+            {
+                Id = entry.Id,
+                Version = entry.Version
+            };
+        }
     }
 }

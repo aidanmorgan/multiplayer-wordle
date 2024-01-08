@@ -114,10 +114,7 @@ public class Renderer : IRenderer
 
             case RenderOutput.Png:
             {
-                var bitmap = svgDocument.Draw();
-                bitmap.Save(resultStream, ImageFormat.Png);
-
-                break;
+                throw new NotImplementedException();
             }
         }
     }

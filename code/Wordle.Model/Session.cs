@@ -1,6 +1,6 @@
 namespace Wordle.Model;
 
-public class Session : IAggregate
+public class Session : IAggregate, IVersioned
 {
     public Guid Id { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
@@ -24,4 +24,6 @@ public class Session : IAggregate
         ActiveRoundId = null;
         ActiveRoundEnd = null;
     }
+
+    public long Version { get; set; } = 0;
 }

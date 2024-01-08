@@ -24,7 +24,7 @@ public class CreateNewRoundCommandHandler : IRequestHandler<CreateNewRoundComman
 
     public async Task<Guid> Handle(CreateNewRoundCommand request, CancellationToken cancellationToken)
     {
-        var res = await _mediator.Send(new GetSessionByIdQuery(request.SessionId), cancellationToken);
+        var res = await _mediator.Send(new GetSessionByIdQuery(request.SessionId, request.SessionVersion), cancellationToken);
 
         if (res == null)
         {
@@ -69,7 +69,7 @@ public class CreateNewRoundCommandHandler : IRequestHandler<CreateNewRoundComman
 
         await uow.SaveAsync();
 
-        await _mediator.Publish(new NewRoundStarted(session.Tenant, session.Id, round.Id, session.ActiveRoundEnd.Value));
+        await _mediator.Publish(new NewRoundStarted(session.Tenant, session.Id, session.Version, round.Id,  round.Version,session.ActiveRoundEnd.Value));
 
         return round.Id;
     }

@@ -13,6 +13,10 @@ public class SessionQueryResult
 public class GetSessionByIdQuery : IRequest<SessionQueryResult?>
 {
     public Guid Id { get; set; }
+    public long Version { get; set; }
+
+    public bool VersionAware { get; set; } = true;
+    
     public bool IncludeOptions { get; set; } = true;
     public bool IncludeRounds { get; set; } = true;
 
@@ -23,8 +27,18 @@ public class GetSessionByIdQuery : IRequest<SessionQueryResult?>
         
     }
 
-    public GetSessionByIdQuery(Guid id)
+    public GetSessionByIdQuery(Guid id, long? version)
     {
         this.Id = id;
+
+        if (version.HasValue)
+        {
+            VersionAware = true;
+            Version = version.Value;
+        }
+        else
+        {
+            VersionAware = false;
+        }
     }
 }

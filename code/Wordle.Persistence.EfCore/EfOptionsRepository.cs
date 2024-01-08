@@ -19,6 +19,8 @@ public class EfOptionsRepository : IOptionsRepository
 
     public Task UpdateAsync(Options val)
     {
+        val.Version += 1;
+        
         _options.Update(val);
         return Task.CompletedTask;
     }

@@ -127,13 +127,16 @@ public class AutofacConfigurationBuilder
         return this;
     }
 
-    public AutofacConfigurationBuilder AddPostgresPersistence()
+    public AutofacConfigurationBuilder AddPostgresPersistence(bool autoMigrate = true)
     {
         MediatrAssemblies.Add(typeof(Usings).Assembly);
 
-        _builder.RegisterType<Wordle.EfCore.WordleMigrator>()
-            .As<IStartable>()
-            .SingleInstance();
+        if (autoMigrate)
+        {
+            _builder.RegisterType<Wordle.EfCore.WordleMigrator>()
+                .As<IStartable>()
+                .SingleInstance();
+        }
 
         _builder
             .RegisterType<WordleEfCoreSettings>()
@@ -164,11 +167,14 @@ public class AutofacConfigurationBuilder
         return this;
     }
 
-    public AutofacConfigurationBuilder AddPostgresDictionary()
+    public AutofacConfigurationBuilder AddPostgresDictionary(bool autoMigrate = true)
     {
-        _builder.RegisterType<Wordle.Dictionary.EfCore.EfMigrator>()
-            .As<IStartable>()
-            .SingleInstance();
+        if (autoMigrate)
+        {
+            _builder.RegisterType<Wordle.Dictionary.EfCore.EfMigrator>()
+                .As<IStartable>()
+                .SingleInstance();
+        }
 
         _builder
             .RegisterType<DictionaryEfCoreSettings>()

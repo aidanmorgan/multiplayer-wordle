@@ -1,6 +1,7 @@
 using Dapper;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Wordle.EfCore;
 using Wordle.Model;
 using Wordle.Queries;
@@ -10,10 +11,12 @@ namespace Wordle.QueryHandlers.EfCore;
 public class GetSessionByIdQueryHandler : IRequestHandler<GetSessionByIdQuery, SessionQueryResult?>
 {
     private readonly WordleEfCoreSettings _context;
+    private readonly ILogger<GetSessionByIdQueryHandler> _logger;
 
-    public GetSessionByIdQueryHandler(WordleEfCoreSettings context)
+    public GetSessionByIdQueryHandler(WordleEfCoreSettings context, ILogger<GetSessionByIdQueryHandler> logger)
     {
         _context = context;
+        _logger = logger;
     }
 
     public async Task<SessionQueryResult?> Handle(GetSessionByIdQuery request, CancellationToken cancellationToken)
@@ -34,6 +37,12 @@ public class GetSessionByIdQueryHandler : IRequestHandler<GetSessionByIdQuery, S
         else
         {
             result.Session = session;
+        }
+
+        if (request.VersionAware && session.Version != request.Version)
+        {
+            _logger.LogWarning("Attempt to load Session with Id {Id} expected Version {Version} but got {SessionVersion}", request.Id, request.Version, session.Version);
+            return null;
         }
 
         if (!request.IncludeWord)

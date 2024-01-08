@@ -30,7 +30,7 @@ public class GetOptionsForTenantQueryHandler : IRequestHandler<GetOptionsForTena
                 ExpressionStatement = "pk = :pk and begins_with(sk, :sk)",
                 ExpressionAttributeValues = new Dictionary<string, DynamoDBEntry>()
                 {
-                    { ":pk", Tenant.CreateTenantId(request.TenantType, request.TenantName)},
+                    { ":pk", request.TenantName},
                     { ":sk", IIdConstants.OptionsIdPrefix}
                 }
             },

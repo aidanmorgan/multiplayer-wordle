@@ -128,14 +128,14 @@ services:
       - wordle-local
 
   activemq-1:
-    image: rmohr/activemq
+    image: aidanmorgan/activemq:6.0.1
     hostname: wordle-activemq-1
     env_file:
       - .development-docker-clustered.env
       - .sensitive-docker-clustered.env
     environment:
-      - BROKER_NAME=activemq-1
-      - BROKER_PORT=61616
+      - activemq.name=activemq-1
+      - activemq.port=61616
     ports:
       - 61616:61616
     volumes:
@@ -153,14 +153,14 @@ services:
       driver: none
 
   activemq-2:
-    image: rmohr/activemq
+    image: aidanmorgan/activemq:6.0.1
     hostname: wordle-activemq-2
     env_file:
       - .development-docker-clustered.env
       - .sensitive-docker-clustered.env
     environment:
-      - BROKER_NAME=activemq-2
-      - BROKER_PORT=61617    
+      - activemq.name=activemq-2
+      - activemq.port=61617    
     ports:
       - 61617:61617
     volumes:
@@ -178,14 +178,14 @@ services:
       driver: none
 
   activemq-3:
-    image: rmohr/activemq
+    image: aidanmorgan/activemq:6.0.1
     hostname: wordle-activemq-3
     env_file:
       - .development-docker-clustered.env
       - .sensitive-docker-clustered.env
     environment:
-      - BROKER_NAME=activemq-3
-      - BROKER_PORT=61618
+      - activemq.name=activemq-3
+      - activemq.port=61618
     ports:
       - 61618:61618
     volumes:
@@ -201,8 +201,6 @@ services:
           - wordle-activemq-3
     logging:
       driver: none
-
-
 
   postgres:
     image: postgres:latest

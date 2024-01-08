@@ -46,4 +46,6 @@ public class ActiveMqDelayProcessingOptions
 
     public TimeSpan ConsumeReceiveTimeout { get; init; } = TimeSpan.FromSeconds(2);
     public TimeSpan CleanShutdownDelay { get; init; } = TimeSpan.FromSeconds(10);
+
+    public TimeSpan LockTimeout { get; set; } = TimeSpan.FromSeconds(5);
 }

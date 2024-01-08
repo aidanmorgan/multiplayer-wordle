@@ -7,7 +7,7 @@ using Wordle.Queries;
 
 namespace Wordle.QueryHandlers.DynamoDb;
 
-public class GetActiveSessionForTenantQueryHandler : IRequestHandler<GetActiveSessionForTenantQuery, Guid?>
+public class GetActiveSessionForTenantQueryHandler : IRequestHandler<GetActiveSessionForTenantQuery, VersionId?>
 {
     private readonly DynamoGameConfiguration _dynamoConfiguration;
 
@@ -16,7 +16,7 @@ public class GetActiveSessionForTenantQueryHandler : IRequestHandler<GetActiveSe
         _dynamoConfiguration = dynamoConfiguration;
     }
 
-    public async Task<Guid?> Handle(GetActiveSessionForTenantQuery request, CancellationToken cancellationToken)
+    public async Task<VersionId?> Handle(GetActiveSessionForTenantQuery request, CancellationToken cancellationToken)
     {
         var table = _dynamoConfiguration.GetTable();
 
@@ -31,7 +31,7 @@ public class GetActiveSessionForTenantQueryHandler : IRequestHandler<GetActiveSe
                     ExpressionStatement = "tenant = :t and begins_with(pk, :s)",
                     ExpressionAttributeValues =
                     {
-                        { ":t", Tenant.CreateTenantId(request.TenantType, request.TenantName) },
+                        { ":t", request.TenantName},
                         { ":s", await IIdConstants.SessionIdPrefix.MakeDynamoAsync() }
                     }
                 },
@@ -58,8 +58,18 @@ public class GetActiveSessionForTenantQueryHandler : IRequestHandler<GetActiveSe
             return await subset
                 .Select(x => new Tuple<DateTimeOffset, Document>(DateTimeOffset.Parse(x["active_round_end"]), x))
                 .OrderByDescending(x => x.Item1)
-                .First().Item2["pk"]
-                .AsSessionIdAsync();
+                .Select(async x =>
+                {
+                    var id = await x.Item2["pk"].AsSessionIdAsync();
+                    var version = await x.Item2["version"].AsIntAsync();
+                    
+                    return new VersionId()
+                    {
+                        Id = id,
+                        Version = version
+                    };
+                })
+                .FirstOrDefault();
         }
 
         return null;

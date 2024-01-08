@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using Apache.NMS;
 using Apache.NMS.ActiveMQ;
+using Medallion.Threading;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -8,7 +9,7 @@ using Polly;
 using Wordle.ActiveMq.Common;
 using Wordle.Clock;
 using Wordle.Commands;
-
+using Wordle.Queries;
 using static Wordle.ActiveMq.Common.ActiveMqUtil;
 
 namespace Wordle.Apps.GameEventProcessor.Impl;
@@ -17,6 +18,7 @@ public class ActiveMqDelayProcessingService : IDelayProcessingService
 {
     private readonly ActiveMqDelayProcessingOptions _options;
     private readonly ILogger<ActiveMqDelayProcessingService> _logger;
+    private readonly IDistributedLockProvider _lockProvider;
     private readonly IClock _clock;
     private readonly IMediator _mediator;
 
@@ -24,17 +26,18 @@ public class ActiveMqDelayProcessingService : IDelayProcessingService
 
     public ManualResetEventSlim ReadySignal => _options.ReadySignal;
 
-    public ActiveMqDelayProcessingService(ActiveMqDelayProcessingOptions options, IMediator mediator, IClock clock, ILogger<ActiveMqDelayProcessingService> logger)
+    public ActiveMqDelayProcessingService(ActiveMqDelayProcessingOptions options, IMediator mediator, IDistributedLockProvider lockProvider, IClock clock, ILogger<ActiveMqDelayProcessingService> logger)
     {
         _options = options;
         _mediator = mediator;
+        _lockProvider = lockProvider;
         _clock = clock;
         _logger = logger;
     }
 
-    public Task ScheduleRoundUpdate(Guid sessionId, Guid roundId, DateTimeOffset executionTime, CancellationToken token)
+    public Task ScheduleRoundUpdate(VersionId session, VersionId round, DateTimeOffset executionTime, CancellationToken token)
     {
-        _publishQueue.Add(new TimeoutPayload(sessionId, roundId, executionTime), token);
+        _publishQueue.Add(new TimeoutPayload(session.Id, session.Version, round.Id, round.Version, executionTime), token);
         return Task.CompletedTask;
     }
 
@@ -44,7 +47,6 @@ public class ActiveMqDelayProcessingService : IDelayProcessingService
         var serviceCancellation = new CancellationTokenSource();
         
         _logger.LogInformation("Starting {ServiceName} connecting to {ActiveMqUri}", nameof(ActiveMqDelayProcessingService), _options.ActiveMqUri);
-        
         
         var factory = new ConnectionFactory(_options.ActiveMqUri);
 
@@ -146,6 +148,7 @@ public class ActiveMqDelayProcessingService : IDelayProcessingService
 
             var session = await connection.CreateSessionAsync();
             var topicName = $"VirtualTopic.{_options.TaskQueueName}";
+            
             var topicDestination = await session.GetTopicAsync(topicName);
             var producer = await session.CreateProducerAsync(topicDestination);
 
@@ -190,9 +193,11 @@ public class ActiveMqDelayProcessingService : IDelayProcessingService
 
     public async Task HandleTimeout(TimeoutPayload payload)
     {
+        await using var dLock = await _lockProvider.AcquireLockAsync($"Session:{payload.SessionId}", _options.LockTimeout);
         try
         {
-            await _mediator.Send(new EndActiveRoundCommand(payload.SessionId, payload.RoundId));
+            await _mediator.Send(new EndActiveRoundCommand(payload.SessionId, payload.SessionVersion,
+                payload.RoundId, payload.RoundVersion));
         }
         catch (EndActiveRoundCommandException x)
         {

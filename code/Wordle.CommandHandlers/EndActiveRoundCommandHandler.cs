@@ -31,7 +31,7 @@ public class EndActiveRoundCommandHandler : IRequestHandler<EndActiveRoundComman
     {
         var now = _clock.UtcNow();
         
-        var res = await _mediator.Send(new GetSessionByIdQuery(request.SessionId));
+        var res = await _mediator.Send(new GetSessionByIdQuery(request.SessionId, request.SessionVersion));
         if (res == null)
         {
             throw new EndActiveRoundCommandException($"Cannot end active Round for Session {request.SessionId}, Session not found.");
@@ -152,7 +152,7 @@ public class EndActiveRoundCommandHandler : IRequestHandler<EndActiveRoundComman
                     
                     if (guesses.Count < options.MinimumAnswersRequired)
                     {
-                        await _mediator.Publish(new RoundExtended(session.Tenant, session.Id, round.Id, session.ActiveRoundEnd.Value, RoundExtensionReason.NOT_ENOUGH_GUESSES), cancellationToken);
+                        await _mediator.Publish(new RoundExtended(session.Tenant, session.Id, session.Version, round.Id, round.Version, session.ActiveRoundEnd.Value, RoundExtensionReason.NOT_ENOUGH_GUESSES), cancellationToken);
 
                         _logger.LogInformation(
                             "Extending Round {RoundId} as the end criteria is unmet. Next check: {SessionActiveRoundEnd}",
@@ -160,7 +160,7 @@ public class EndActiveRoundCommandHandler : IRequestHandler<EndActiveRoundComman
                     }
                     else if (differenceToRoundEnd <= options.RoundExtensionWindow)
                     {
-                        await _mediator.Publish(new RoundExtended(session.Tenant, session.Id, round.Id, session.ActiveRoundEnd.Value, RoundExtensionReason.LATE_ARRIVING_GUESS), cancellationToken);
+                        await _mediator.Publish(new RoundExtended(session.Tenant, session.Id, session.Version,round.Id, round.Version,session.ActiveRoundEnd.Value, RoundExtensionReason.LATE_ARRIVING_GUESS), cancellationToken);
 
                         _logger.LogInformation(
                             "Extending Round {RoundId} as the last guess was submitted at {GuessTime} which was within the {Window} limit. Next check: {SessionActiveRoundEnd}",
@@ -187,8 +187,8 @@ public class EndActiveRoundCommandHandler : IRequestHandler<EndActiveRoundComman
             await uow.Sessions.UpdateAsync(session);
             await uow.SaveAsync();
 
-            await _mediator.Publish(new RoundTerminated(session.Tenant, session.Id, round.Id), cancellationToken);
-            await _mediator.Publish(new SessionTerminated(session.Tenant, session.Id), cancellationToken);
+            await _mediator.Publish(new RoundTerminated(session.Tenant, session.Id, session.Version, round.Id, round.Version), cancellationToken);
+            await _mediator.Publish(new SessionTerminated(session.Tenant, session.Id, session.Version), cancellationToken);
 
             _logger.LogInformation("TERMINATING Round {RoundId} and Session {SessionId}", round.Id, session.Id);
             
@@ -199,7 +199,7 @@ public class EndActiveRoundCommandHandler : IRequestHandler<EndActiveRoundComman
         await UpdateRoundSelectedGuess(uow, round, word, session);
 
         await uow.SaveAsync();
-        await _mediator.Publish(new RoundEnded(session.Tenant, session.Id, round.Id), cancellationToken);
+        await _mediator.Publish(new RoundEnded(session.Tenant, session.Id, session.Version, round.Id, round.Version), cancellationToken);
         
         _logger.LogInformation("Ending Round {RoundId}, selected word was {Word}.", round.Id, word.Key);
 

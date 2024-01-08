@@ -36,17 +36,15 @@
     </bean>
 
 
-    <!-- Allows accessing the server log -->
-    <bean id="logQuery" class="io.fabric8.insight.log.log4j.Log4jLogQuery"
-          lazy-init="false" scope="singleton"
-          init-method="start" destroy-method="stop">
-    </bean>
-
     <!--
         The <broker> element is used to configure the ActiveMQ broker.
     -->
-    <broker xmlns="http://activemq.apache.org/schema/core" brokerName="${BROKER_NAME}" dataDirectory="${activemq.data}"
-            schedulerSupport="true" useVirtualDestSubs="true" useVirtualDestSubsOnCreation="true">
+    <broker xmlns="http://activemq.apache.org/schema/core" 
+            brokerName="${activemq.name}" 
+            dataDirectory="${activemq.data}"
+            schedulerSupport="true" 
+            useVirtualDestSubs="true" 
+            useVirtualDestSubsOnCreation="true">
 
         <networkConnectors>
             <networkConnector uri="static:(tcp://activemq-1:61616,tcp://activemq-2:61617,tcp://activemq-3:61618)">
@@ -130,8 +128,7 @@
         -->
         <transportConnectors>
             <!-- DOS protection, limit concurrent connections to 1000 and frame size to 100MB -->
-            <transportConnector name="openwire"
-                                uri="tcp://0.0.0.0:${BROKER_PORT}" discoveryUri="multicast://default"/>
+            <transportConnector name="openwire" uri="tcp://0.0.0.0:${activemq.port}?maximumConnections=1000&amp;wireFormat.maxFrameSize=104857600"/>
             <!--
                         <transportConnector name="amqp"
                                             uri="amqp://0.0.0.0:5672?maximumConnections=1000&amp;wireFormat.maxFrameSize=104857600"/>

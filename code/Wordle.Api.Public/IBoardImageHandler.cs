@@ -45,7 +45,7 @@ public class AmazonBoardImageHander : IBoardImageHandler
 
 public class LocalDiskImageHandler : IBoardImageHandler
 {
-    public static readonly Func<Guid, Guid, string> DefaultPathGenerator = (s, r) => $"{s}/{r}.png";
+    public static readonly Func<Guid, Guid, string> DefaultPathGenerator = (s, r) => $"{s}/{r}.svg";
     
     private readonly string _baseDirectory;
     private readonly Func<Guid, Guid, string> _pathGenerator;

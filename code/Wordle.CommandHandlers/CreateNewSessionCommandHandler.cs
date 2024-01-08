@@ -33,8 +33,7 @@ public class CreateNewSessionCommandHandler : IRequestHandler<CreateNewSessionCo
         var sessionId = Ulid.NewUlid().ToGuid();
         var roundId = Ulid.NewUlid().ToGuid();
 
-        var tenantId = $"{request.TenantType}#{request.TenantName}";
-        var options = await _mediator.Send(new GetOptionsForTenantQuery(request.TenantType, request.TenantName), cancellationToken);
+        var options = await _mediator.Send(new GetOptionsForTenantQuery(request.TenantName), cancellationToken);
 
         var uow = _unitOfWork.Create();
         
@@ -44,11 +43,11 @@ public class CreateNewSessionCommandHandler : IRequestHandler<CreateNewSessionCo
             options = new Options()
             {
                 Id = Ulid.NewUlid().ToGuid(),
-                TenantId = tenantId,
+                TenantId = request.TenantName,
                 CreatedAt = _clock.UtcNow()
             };
             
-            await uow.Options.AddAsync(tenantId, options);
+            await uow.Options.AddAsync(request.TenantName, options);
         }
         
         var word = request.Word;
@@ -66,15 +65,17 @@ public class CreateNewSessionCommandHandler : IRequestHandler<CreateNewSessionCo
             ActiveRoundId = roundId,
             ActiveRoundEnd = _clock.UtcNow().AddSeconds(options.InitialRoundLength),
         };
-        await uow.Sessions.AddAsync(tenantId, session);
+        await uow.Sessions.AddAsync(request.TenantName, session);
 
-        await uow.Rounds.AddAsync(new Round()
+        var round = new Round()
         {
             Id = roundId,
             SessionId = sessionId,
             CreatedAt = _clock.UtcNow(),
             State = RoundState.ACTIVE
-        });
+        };
+        
+        await uow.Rounds.AddAsync(round);
 
 
         // we have the options we're meant to use for the session now, either a new set, or ones loaded from a tenant's
@@ -89,8 +90,8 @@ public class CreateNewSessionCommandHandler : IRequestHandler<CreateNewSessionCo
         
         _logger.LogInformation("Created new Session: {SessionId} with initial Round: {RoundId}", sessionId, roundId);
         
-        await _mediator.Publish(new NewSessionStarted(session.Tenant, sessionId), cancellationToken);
-        await _mediator.Publish(new NewRoundStarted(session.Tenant, sessionId, roundId, session.ActiveRoundEnd.Value, true), cancellationToken);
+        await _mediator.Publish(new NewSessionStarted(session.Tenant, sessionId, session.Version), cancellationToken);
+        await _mediator.Publish(new NewRoundStarted(session.Tenant, sessionId, session.Version, roundId, round.Version, session.ActiveRoundEnd.Value, true), cancellationToken);
         
         return sessionId;
     }

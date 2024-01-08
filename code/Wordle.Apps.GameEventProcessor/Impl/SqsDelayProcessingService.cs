@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Wordle.Apps.Common;
 using Wordle.Clock;
 using Wordle.Commands;
+using Wordle.Queries;
 
 namespace Wordle.Apps.GameEventProcessor.Impl;
 
@@ -36,12 +37,12 @@ public class SqsDelayProcessingService : IDelayProcessingService
         _logger = logger;
     }
 
-    public async Task ScheduleRoundUpdate(Guid sessionId, Guid roundId, DateTimeOffset executionTime, CancellationToken cancellationToken)
+    public async Task ScheduleRoundUpdate(VersionId session, VersionId round, DateTimeOffset executionTime, CancellationToken cancellationToken)
     {
         try
         {
             await _sqs.SendMessageAsync(new SendMessageRequest(EnvironmentVariables.TimeoutQueueUrl,
-                JsonConvert.SerializeObject(new TimeoutPayload(sessionId, roundId, executionTime)))
+                JsonConvert.SerializeObject(new TimeoutPayload(session.Id, session.Version, round.Id, round.Version, executionTime)))
             {
                 DelaySeconds = (int)Math.Max(Math.Ceiling(executionTime.Subtract(_clock.UtcNow()).TotalSeconds), 0)
             }, cancellationToken);
@@ -99,7 +100,7 @@ public class SqsDelayProcessingService : IDelayProcessingService
     {
         try
         {
-            await _mediator.Send(new EndActiveRoundCommand(payload.SessionId, payload.RoundId));
+            await _mediator.Send(new EndActiveRoundCommand(payload.SessionId, payload.SessionVersion, payload.RoundId, payload.RoundVersion));
         }
         catch (CommandException x)
         {

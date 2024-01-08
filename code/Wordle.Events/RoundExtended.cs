@@ -9,7 +9,11 @@ public class RoundExtended  : BaseEvent
         get; init;
     }
     
+    public long RoundVersion { get; set; }
+    
     public Guid SessionId { get;  init; }
+    
+    public long SessionVersion { get; set; }
     
     public DateTimeOffset RoundExpiry { get;  init; }
     
@@ -17,10 +21,12 @@ public class RoundExtended  : BaseEvent
     
 
 
-    public RoundExtended(string tenant, Guid sessionId, Guid roundId, DateTimeOffset roundExpiry, RoundExtensionReason reason) : base(tenant)
+    public RoundExtended(string tenant, Guid sessionId, long sessionVersion, Guid roundId, long roundVersion, DateTimeOffset roundExpiry, RoundExtensionReason reason) : base(tenant)
     {
         RoundId = roundId;
+        RoundVersion = roundVersion;
         SessionId = sessionId;
+        SessionVersion = sessionVersion;
         RoundExpiry = roundExpiry;
         Reason = reason;
     }
