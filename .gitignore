@@ -399,5 +399,6 @@ FodyWeavers.xsd
 /code/.idea/**
 /code/.sensitive-docker.env
 /code/.sensitive-local.env
-/data/
 /code/.sensitive-docker-clustered.env
+/data/
+/temp/
