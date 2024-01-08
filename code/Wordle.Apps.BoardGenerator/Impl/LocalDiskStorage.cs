@@ -1,11 +1,12 @@
 using Wordle.Common;
+using Wordle.Render;
 
 namespace Wordle.Apps.BoardGenerator.Impl;
 
 public class LocalDiskStorage : IBoardStorage
 {
     public static readonly Func<string, Guid, Guid, string> DefaultPathGenerator = (b, s, r) => Path.Combine(b, s.ToString());
-    public static readonly Func<Guid, Guid, string> DefaultFileGenerator = (s, r) => $"{r}.png";
+    public static readonly Func<Guid, Guid, string> DefaultFileGenerator = (s, r) => $"{r}.svg";
 
     private static readonly ReaderWriterLock FileSystemLock = new ReaderWriterLock();
 
@@ -29,7 +30,8 @@ public class LocalDiskStorage : IBoardStorage
         _fileNameGenerator = fileGenerator ?? DefaultFileGenerator;
     }
 
-    public async Task<string> StoreBoard(Guid sessionId, Guid roundId, Stream boardStream, CancellationToken token)
+    public async Task<string> StoreBoard(Guid sessionId, Guid roundId, RenderOutput svg, Stream boardStream,
+        CancellationToken token)
     {
         CreateBaseDirectory(_baseDirectory);
         

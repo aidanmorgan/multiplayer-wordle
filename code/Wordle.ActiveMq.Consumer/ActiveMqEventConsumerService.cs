@@ -56,34 +56,13 @@ public class ActiveMqEventConsumerService : IEventConsumerService
             {
                 tasks.Add(Task.Run(async () =>
                 {
-                    IConnection connection = null;
-                    ISession session = null;
-                    IMessageConsumer consumer = null;
+                    var eventKey = ActiveMqOptions.TopicNamer(eventClass);
+                    var queueName = $"Consumer.{activeMqSafeInstanceType}.VirtualTopic.{eventKey}";
                     
-                    try 
-                    {
-                        connection = await factory.CreateConnectionAsync();
-                        await connection.StartAsync();
-
-                        session = await connection.CreateSessionAsync();
-
-                        var eventKey = ActiveMqOptions.TopicNamer(eventClass);
-                        var queueName = $"Consumer.{activeMqSafeInstanceType}.VirtualTopic.{eventKey}";
-                        var queue = await session.GetQueueAsync(queueName);
-                        
-                        var signal = new ManualResetEventSlim();
-                        consumerReadySignals.Add(signal);
-
-                        consumer = await session.CreateConsumerAsync(queue);
+                    var signal = new ManualResetEventSlim();
+                    consumerReadySignals.Add(signal);
                     
-                        await RunConsumerAsync(queueName, eventClass, consumer, signal, consumerCancellationToken.Token);
-                    }
-                    finally
-                    {
-                        await CloseQuietly(consumer, _logger);
-                        await CloseQuietly(session, _logger);
-                        await CloseQuietly(connection, _logger);
-                    }
+                    await RunConsumerAsync(queueName, eventClass, factory, signal, consumerCancellationToken.Token);
                 }, consumerCancellationToken.Token));
             }
             
@@ -134,31 +113,61 @@ public class ActiveMqEventConsumerService : IEventConsumerService
         }
     }
     
-    private async Task RunConsumerAsync(string queueName, Type eventType, IMessageConsumer consumer, ManualResetEventSlim signal, CancellationToken token)
+    private async Task RunConsumerAsync(string queueName, Type eventType, IConnectionFactory factory, ManualResetEventSlim signal, CancellationToken token)
     {
         var ctx = new Context().Initialise(_logger);
         var result = await _options.ConsumerRetryPolicy.ExecuteAndCaptureAsync(async (c, ct) =>
         {
             _logger.LogInformation("Creating consumer for Queue {QueueName}", queueName);
-            signal.Set();
-            
-            while (!ct.IsCancellationRequested)
+
+            IConnection connection = null;
+            ISession session = null;
+            IMessageConsumer consumer = null;
+
+            try
             {
-                // activemq for whatever reason doesn't support cancellation tokens, so what we need to do here is a
-                // relatively "short" poll to see if there is any data - if there isn't then we need to spin back around
-                // and check the cancellation token to see if this thread needs to shut down.
-                var message = await consumer.ReceiveAsync(_options.ConsumerPollTimeout) as ITextMessage;
-                if (message == null || string.IsNullOrEmpty(message.Text))
+                connection = await factory.CreateConnectionAsync();
+                await connection.StartAsync();
+
+                session = await connection.CreateSessionAsync(AcknowledgementMode.ClientAcknowledge);
+                var queue = await session.GetQueueAsync(queueName);
+
+                consumer = await session.CreateConsumerAsync(queue);
+                signal.Set();
+
+                
+                _logger.LogInformation("Starting Consumer for Event queue {TopicName}", queueName);
+
+                while (!ct.IsCancellationRequested)
                 {
-                    continue;
+                    // activemq for whatever reason doesn't support cancellation tokens, so what we need to do here is a
+                    // relatively "short" poll to see if there is any data - if there isn't then we need to spin back around
+                    // and check the cancellation token to see if this thread needs to shut down.
+                    var message = await consumer.ReceiveAsync(_options.ConsumerPollTimeout) as ITextMessage;
+                    if (message == null)
+                    {
+                        continue;
+                    }
+                    
+                    try
+                    {
+                        var @event = (IEvent)JsonSerializer.Deserialize(message.Text, eventType);
+
+                        _logger.LogInformation("Received Event: {Event}", message.Text);
+                        await _mediator.Publish(@event);
+                    }
+                    finally
+                    {
+                        await message.AcknowledgeAsync();
+                    }
+
                 }
-
-                var @event = (IEvent)JsonSerializer.Deserialize(message.Text, eventType);
-
-                _logger.LogInformation("Received Event: {Event}", message.Text);
-                await _mediator.Publish(@event);
-
-//                await message.AcknowledgeAsync();
+            }
+            finally
+            {
+                await CloseQuietly(consumer, _logger);
+                await CloseQuietly(session, _logger);
+                await CloseQuietly(connection, _logger);
             }
         }, ctx, token);
 

@@ -47,8 +47,6 @@ public class ActiveMqEventPublisherService : IEventPublisherService
             var serviceCancel = new CancellationTokenSource();
             
             IConnectionFactory factory = new ConnectionFactory(_options.ActiveMqUri);
-            
-
             var tasks = new List<Tuple<Task,ManualResetEventSlim>>();
 
             foreach (var type in EventUtil.GetAllEventTypes())
@@ -57,31 +55,9 @@ public class ActiveMqEventPublisherService : IEventPublisherService
 
                 tasks.Add(new Tuple<Task, ManualResetEventSlim>(Task.Run(async () =>
                 {
-                    IConnection connection = null;
-                    ISession session = null;
-                    IMessageProducer producer = null;
+                    var topicName = $"VirtualTopic.{ActiveMqOptions.TopicNamer(type)}";
                     
-                    try
-                    {
-                        connection = await factory.CreateConnectionAsync();
-                        await connection.StartAsync();
-            
-                        session = await connection.CreateSessionAsync();
-
-                        var topicName = $"VirtualTopic.{ActiveMqOptions.TopicNamer(type)}";
-                        var destination = await session.GetTopicAsync(topicName);
-
-                        _logger.LogInformation("Creating producer for Event topic {TopicName}", topicName);
-
-                        producer = await session.CreateProducerAsync(destination);
-                        await Producer(type, producer, session, serviceCancel.Token).ConfigureAwait(false);
-                    }
-                    finally
-                    {    
-                        await CloseQuietly(producer, _logger);
-                        await CloseQuietly(session, _logger);
-                        await CloseQuietly(connection, _logger);
-                    }
+                    await Producer(type, factory, topicName, serviceCancel.Token).ConfigureAwait(false);
                 }, serviceCancel.Token), initialisationSignal));
             }
 
@@ -125,13 +101,27 @@ public class ActiveMqEventPublisherService : IEventPublisherService
         }
     }
 
-    private async Task Producer(Type type, IMessageProducer producer, ISession session, CancellationToken serviceCancel)
+    private async Task Producer(Type type, IConnectionFactory factory, string topicName, CancellationToken serviceCancel)
     {
         var ctx = new Context().Initialise(_logger);
         var result = await _options.ProducerPolicy.ExecuteAndCaptureAsync(async (c, ct) =>
         {
+            IConnection connection = null;
+            ISession session = null;
+            IMessageProducer producer = null;
+
             try
             {
+                connection = await factory.CreateConnectionAsync();
+                await connection.StartAsync();
+
+                session = await connection.CreateSessionAsync();
+
+                var topic = await session.GetTopicAsync(topicName);
+                producer = await session.CreateProducerAsync(topic);
+                
+                _logger.LogInformation("Starting Producer for Event topic {TopicName}", topicName);
+
                 while (!ct.IsCancellationRequested)
                 {
                     var ev = _publisherQueues[type].Take(ct);
@@ -168,15 +158,17 @@ public class ActiveMqEventPublisherService : IEventPublisherService
             }
             // suppressing this on purpose, if it is thrown it is because the token has been cancelled from outside of this
             // thread and we are just going to shut down anyway.
-            catch(OperationCanceledException) {}
+            catch (OperationCanceledException)
+            {
+                // we going to ignore this one, it just means we're shutting down
+            }
+            finally
+            {
+                await CloseQuietly(producer, _logger);
+                await CloseQuietly(session, _logger);
+                await CloseQuietly(connection, _logger);
+            }
         }, ctx, serviceCancel);
-
-        try
-        {
-            await producer.CloseAsync();
-        }
-        // just done for safety, okay to ignore
-        catch(Exception) { }
 
         if (result.Outcome == OutcomeType.Failure)
         {

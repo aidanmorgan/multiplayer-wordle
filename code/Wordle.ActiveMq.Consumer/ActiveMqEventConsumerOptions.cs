@@ -59,5 +59,5 @@ public class ActiveMqEventConsumerOptions : ActiveMqOptions
     
     // how long we should reasonably wait for all of the required consumers to start and be in a listening state before
     // we shut down and try agin.
-    public TimeSpan MaximumConsumerInitialiseTime { get; set; } = TimeSpan.FromSeconds(5);
+    public TimeSpan MaximumConsumerInitialiseTime { get; set; } = TimeSpan.FromSeconds(20);
 }

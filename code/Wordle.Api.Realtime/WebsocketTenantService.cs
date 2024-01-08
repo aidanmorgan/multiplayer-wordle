@@ -44,18 +44,26 @@ public class WebsocketTenantService : IWebsocketTenantService
     public async Task Handle(GuessAdded notification, CancellationToken ct)
     {
         var observable = GetObservableForTenant(notification.Tenant);
-
         if (observable == null)
+        {
+            _logger.LogInformation("Received guess for {Tenant} but there are no listeners.", notification.Tenant);
+            return;
+        }
+        
+        var sessionId = await _mediator.Send(new GetActiveSessionForTenantQuery(notification.Tenant), ct);
+        if (!sessionId.HasValue)
         {
             return;
         }
         
-        var guesses = _mediator.Send(new GetGuessesForRoundQuery(notification.RoundId), ct);
-        var options =  _mediator.Send(new GetOptionsForTenantQuery("web", notification.Tenant), ct);
+        var guessesTask = _mediator.Send(new GetGuessesForRoundQuery(notification.RoundId), ct);
+        var sessionTask = _mediator.Send(new GetSessionByIdQuery(sessionId.Value), ct);
+        await Task.WhenAll(guessesTask, sessionTask);
 
-        await Task.WhenAll(guesses, options);
+        var guesses = guessesTask.Result;
+        var session = sessionTask.Result;
         
-        var decimated = _guessDecimator.DecimateGuesses(guesses.Result, options.Result ?? new Options());
+        var decimated = _guessDecimator.DecimateGuesses(guesses, session?.Options ?? new Options());
 
         var array = decimated
             .GroupBy(x => x.Word)
@@ -65,13 +73,22 @@ public class WebsocketTenantService : IWebsocketTenantService
                 Word = x.Key,
                 Users = x.ToList().Select(x => x.User).ToArray()
             })
+            .OrderByDescending(x => x.Users.Length)
+            .ThenBy(x => x.Word)
             .ToArray();
+        
+
         
         ((Subject<ArraySegment<byte>>)observable)?.OnNextJson(new EventPayload()
         {
             GameId = notification.SessionId,
             Event = "update_guesses",
-            Value = array
+            Value = new
+            {
+                Guesses = array,
+                RoundId = session?.Session.ActiveRoundId,
+                RoundEnd = session?.Session.ActiveRoundEnd
+            },
         });
     }
     

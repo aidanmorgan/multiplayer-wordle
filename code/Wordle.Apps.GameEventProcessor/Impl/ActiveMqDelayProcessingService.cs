@@ -95,7 +95,7 @@ public class ActiveMqDelayProcessingService : IDelayProcessingService
             var connection = await factory.CreateConnectionAsync();
             await connection.StartAsync();
 
-            var session = await connection.CreateSessionAsync();
+            var session = await connection.CreateSessionAsync(AcknowledgementMode.ClientAcknowledge);
             
             var queueName = $"Consumer.{cleanInstanceType}.VirtualTopic.{_options.TaskQueueName}";
             var queue = await session.GetQueueAsync(queueName);
@@ -109,14 +109,20 @@ public class ActiveMqDelayProcessingService : IDelayProcessingService
                 while (!ct.IsCancellationRequested)
                 {
                     var message = await consumer.ReceiveAsync(_options.ConsumeReceiveTimeout) as ITextMessage;
-
-                    if (message == null || string.IsNullOrEmpty(message.Text))
+                    if (message == null)
                     {
                         continue;
                     }
 
-                    var @event = JsonConvert.DeserializeObject<TimeoutPayload>(message.Text);
-                    await HandleTimeout(@event);
+                    try
+                    {
+                        var @event = JsonConvert.DeserializeObject<TimeoutPayload>(message.Text);
+                        await HandleTimeout(@event);
+                    }
+                    finally
+                    {
+                        await message.AcknowledgeAsync();
+                    }
                 }
             }
             finally

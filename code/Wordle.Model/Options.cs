@@ -11,7 +11,7 @@ public class Options : IAggregate
     public int RoundExtensionLength { get; set; } = 30; // when a guess is added, how much to extend the round by
     public int MaximumRoundExtensions { get; set; } = 50; // the maximum number of times the round can be extended
     
-    public int MinimumAnswersRequired { get; set; } = 2; // the minimum number of answers required to end a round
+    public int MinimumAnswersRequired { get; set; } = 1; // the minimum number of answers required to end a round
     public string DictionaryName { get; set; } = "wordle"; // the name of the dictionary to use
     
     // how many guesses are allowed per-user per-round

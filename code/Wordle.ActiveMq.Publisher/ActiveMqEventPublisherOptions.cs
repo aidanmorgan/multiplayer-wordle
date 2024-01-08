@@ -43,5 +43,5 @@ public class ActiveMqEventPublisherOptions : ActiveMqOptions
             });
 
     
-    public TimeSpan ProducerThreadCancelWait { get; init; } = TimeSpan.FromSeconds(5);
+    public TimeSpan ProducerThreadCancelWait { get; init; } = TimeSpan.FromSeconds(10);
 }

@@ -1,9 +1,9 @@
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.Reflection;
 using System.Text;
-using GrapeCity.Documents.Imaging;
-using GrapeCity.Documents.Svg;
-using GrapeCity.Documents.Text;
+using System.Xml.Schema;
+using Svg;
 using Wordle.Model;
 
 namespace Wordle.Render;
@@ -16,28 +16,17 @@ public class Renderer : IRenderer
         "fonts.HelveticaNeue.ttf"
     };
     
-    static Renderer()
-    {
-        var assembly = Assembly.GetAssembly(typeof(Renderer));
-
-        var fonts = EmbeddedFonts.Select(x =>
-        {
-            using var stream = assembly.GetManifestResourceStream($"{assembly.GetName().Name}.{x}");
-            return Font.FromStream(stream);
-        });
-        
-        FontCollection.SystemFonts.AppendFallbackFonts(fonts.ToArray());
-        FontCollection.SystemFonts.DefaultFont = fonts.First();
-    }
-    public void Render(List<DisplayWord> words, RenderOptions? inoos, Stream resultStream)
+    public void Render(List<DisplayWord> words, RenderOptions? inoos, RenderOutput output, Stream resultStream)
     {
         var renderOptions = inoos ?? RenderOptions.CreateFromWidth(500);
-
-        using var svg = new GcSvgDocument();
-        svg.RootSvg.Height = new SvgLength(renderOptions.ImageHeight, SvgLengthUnits.Pixels);
-        svg.RootSvg.Width = new SvgLength(renderOptions.ImageWidth, SvgLengthUnits.Pixels);
-        svg.RootSvg.Fill = new SvgPaint(renderOptions.BackgroundColour.ToArgb());
-        svg.RootSvg.FillOpacity = renderOptions.BackgroundOpacity;
+        
+        var svgDocument = new SvgDocument
+        {
+            Width = renderOptions.ImageWidth.ToPixelUnit(),
+            Height = renderOptions.ImageHeight.ToPixelUnit(),
+            Fill = renderOptions.BackgroundColour.ToPaint(),
+            FillOpacity = renderOptions.BackgroundOpacity
+        };
 
         for (var y = 0; y < renderOptions.NumGuesses; y++)
         {
@@ -54,84 +43,79 @@ public class Renderer : IRenderer
                     var text_x_px = (float)Math.Ceiling(x_px + ((double)renderOptions.BoxWidth / 2.0));
                     var text_y_px = (float)Math.Ceiling(y_px + ((double)renderOptions.BoxHeight / 2.0) + ((double)renderOptions.FontSize / 2.0));
 
-                    SvgRectElement box = new SvgRectElement()
+                    var box = new SvgRectangle()
                     {
-                        X = new SvgLength(x_px),
-                        Y = new SvgLength(y_px),
-                        Width = new SvgLength(renderOptions.BoxWidth, SvgLengthUnits.Pixels),
-                        Height = new SvgLength(renderOptions.BoxHeight, SvgLengthUnits.Pixels),
+                        X = x_px.ToPixelUnit(),
+                        Y = y_px.ToPixelUnit(),
+                        Width = renderOptions.BoxWidth.ToPixelUnit(),
+                        Height = renderOptions.BoxHeight.ToPixelUnit(),
                     };
 
                     if (state == LetterState.CORRECT_LETTER_INCORRECT_POSITION)
                     {
-                        box.Fill = new SvgPaint(renderOptions.Orange.ToArgb());
+                        box.Fill = new SvgColourServer(renderOptions.Orange.ToArgb());
                         box.FillOpacity = renderOptions.OrangeOpacity;
                     }
                     else if (state == LetterState.CORRECT_LETTER_CORRECT_POSITION)
                     {
-                        box.Fill = new SvgPaint(renderOptions.Green.ToArgb());
+                        box.Fill = new SvgColourServer(renderOptions.Green.ToArgb());
                         box.FillOpacity = renderOptions.GreenOpacity;
                     }
                     else
                     {
-                        box.Fill = new SvgPaint(renderOptions.Grey.ToArgb());
+                        box.Fill = new SvgColourServer(renderOptions.Grey.ToArgb());
                         box.FillOpacity = renderOptions.GreyOpacity;
                     }
 
-                    SvgGroupElement groupElement = new SvgGroupElement();
+                    var groupElement = new SvgGroup();
                     groupElement.Children.Add(box);
-                    groupElement.Children.Add(new SvgTextElement()
+                    groupElement.Children.Add(new SvgText()
                     {
-                        X = new List<SvgLength>() { new SvgLength(text_x_px, SvgLengthUnits.Pixels)},
-                        Y = new List<SvgLength>() { new SvgLength(text_y_px, SvgLengthUnits.Pixels)},
+                        X = [ text_x_px.ToPixelUnit() ],
+                        Y = [ text_y_px.ToPixelUnit() ], 
                         TextAnchor = SvgTextAnchor.Middle,
-                        FontFamily = renderOptions.fonts.Select(x => new SvgFontFamily(x, true)).ToList(),
-                        FontSize = new SvgLength(renderOptions.FontSize, SvgLengthUnits.Pixels),
-                        CustomAttributes = new List<SvgCustomAttribute>()
+                        FontFamily = renderOptions.fonts.First(),
+                        FontSize = renderOptions.FontSize.ToPixelUnit(),
+                        Fill = renderOptions.FontColour.ToPaint(),
+                        Text = $"{letter}".ToUpper(),
+                        CustomAttributes =
                         {
-                            new SvgCustomAttribute("dominant_baseline", "middle"),
-                            new SvgCustomAttribute("alignment_baseline", "middle"),
-                        },
-                        Fill = new SvgPaint(renderOptions.FontColour.ToArgb()),
-                        Children = { new SvgContentElement() { Content = $"{letter}".ToUpper() }}
+                            {"dominant_baseline", "middle" },
+                            { "alignment_baseline", "middle" }
+                        }
                     });
-                        
-                    svg.RootSvg.Children.Add(groupElement);
+
+                    svgDocument.Children.Add(groupElement);
                 }
                 else
                 {
-                    var border = new SvgRectElement()
+                    var border = new SvgRectangle()
                     {
-                        Height = new SvgLength(renderOptions.BoxHeight, SvgLengthUnits.Pixels),
-                        Width = new SvgLength(renderOptions.BoxWidth, SvgLengthUnits.Pixels),
-                        X = new SvgLength(x_px),
-                        Y = new SvgLength(y_px),
-                        Stroke = new SvgPaint(renderOptions.LineColour.ToArgb()),
-                        StrokeWidth = new SvgLength(renderOptions.LineWidth),
+                        Height = renderOptions.BoxHeight.ToPixelUnit(),
+                        Width = renderOptions.BoxWidth.ToPixelUnit(),
+                        X = x_px.ToPixelUnit(),
+                        Y = y_px.ToPixelUnit(),
+                        Stroke = renderOptions.LineColour.ToPaint(),
+                        StrokeWidth = renderOptions.LineWidth.ToPixelUnit(),
                     };
                     
-                    svg.RootSvg.Children.Add(border);
+                    svgDocument.Children.Add(border);
                 }
             }
         }
 
-        switch (renderOptions.Output)
+        switch (output)
         {
             case RenderOutput.Svg:
             {
-                svg.Save(resultStream);
+                svgDocument.Write(resultStream, false);
                 break;
             }
 
             case RenderOutput.Png:
             {
-                
-                using (var bmp = new GcBitmap((int)renderOptions.ImageWidth, (int)renderOptions.ImageHeight, false))
-                using (var g = bmp.CreateGraphics(Color.FromArgb(renderOptions.BackgroundColour.ToArgbInt())))
-                {
-                    g.DrawSvg(svg, PointF.Empty);
-                    bmp.SaveAsPng(resultStream);
-                }
+                var bitmap = svgDocument.Draw();
+                bitmap.Save(resultStream, ImageFormat.Png);
 
                 break;
             }

@@ -16,5 +16,5 @@ public class DisplayWord
 
 public interface IRenderer
 {
-    void Render(List<DisplayWord> letters, RenderOptions? renderOptions, Stream stream);
+    void Render(List<DisplayWord> letters, RenderOptions? renderOptions, RenderOutput output, Stream stream);
 }

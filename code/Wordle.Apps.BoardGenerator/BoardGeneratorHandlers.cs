@@ -40,9 +40,9 @@ public class BoardGeneratorHandlers : INotificationHandler<RoundEnded>
         }
 
         using var stream = new MemoryStream();
-        _renderer.Render(session?.Rounds.Select(x => new DisplayWord(x.Guess, x.Result)).ToList() ?? new List<DisplayWord>(), null, stream);
+        _renderer.Render(session?.Rounds.Select(x => new DisplayWord(x.Guess, x.Result)).ToList() ?? new List<DisplayWord>(), null, RenderOutput.Svg, stream);
 
-        var location = await _storage.StoreBoard(ev.SessionId, ev.RoundId, stream, token);
+        var location = await _storage.StoreBoard(ev.SessionId, ev.RoundId, RenderOutput.Svg, stream, token);
         _logger.LogInformation("Uploaded board image: {ImageFilename}", location);
     } 
 }
