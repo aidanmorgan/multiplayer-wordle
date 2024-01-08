@@ -13,8 +13,6 @@ namespace Wordle.Apps.GameEventProcessor;
 
 public class Program 
 {
-    private static readonly TimeSpan MaxCleanShutdownWait = TimeSpan.FromSeconds(10);
-    private static readonly TimeSpan MaximumStartTimeout = TimeSpan.FromSeconds(20);
     
     
     private readonly ILogger<Program> _logger;
@@ -23,6 +21,8 @@ public class Program
     private readonly IDelayProcessingService _delayProcessingService;
     private readonly CancellationTokenSource _systenShutdown;
     private readonly IInitialisationService _initialisationService;
+    private readonly IPeriodicCleanupService _periodicCleanupService;
+    private readonly GameEventProcessorOptions _options;
 
     public static async Task Main()
     {
@@ -36,23 +36,26 @@ public class Program
         configBuilder.RegisterSelf(typeof(Program));
         configBuilder.Callback(x =>
         {
+            x.RegisterInstance(new GameEventProcessorOptions()
+                {
+                    ActiveMqUri = EnvironmentVariables.ActiveMqBrokerUrl,
+                    InstanceType = EnvironmentVariables.InstanceType,
+                    InstanceId = EnvironmentVariables.InstanceId
+                })
+                .SingleInstance();
+            
             x.RegisterType<InitialisationService>()
                 .As<IInitialisationService>()
+                .SingleInstance();
+
+            x.RegisterType<PostgresPeriodicCleanupService>()
+                .As<IPeriodicCleanupService>()
                 .SingleInstance();
             
             x.RegisterType<GameEventProcessorHandlers>()
                 .SingleInstance()
                 .As<GameEventProcessorHandlers>();
-
-            x.RegisterInstance(new ActiveMqDelayProcessingOptions()
-            {
-                ActiveMqUri = EnvironmentVariables.ActiveMqBrokerUrl,
-                InstanceType = EnvironmentVariables.InstanceType,
-                InstanceId = EnvironmentVariables.InstanceId
-            })
-            .As<ActiveMqDelayProcessingOptions>()
-            .SingleInstance();
-
+            
             x.RegisterType<ActiveMqDelayProcessingService>()
                 .As<IDelayProcessingService>()
                 .SingleInstance();
@@ -69,14 +72,16 @@ public class Program
         await program.Run();
     }
     
-    public Program(ILogger<Program> logger, IInitialisationService ins, IEventPublisherService eps, IEventConsumerService ecs, IDelayProcessingService dps)
+    public Program(GameEventProcessorOptions options, ILogger<Program> logger, IInitialisationService ins, IEventPublisherService eps, IEventConsumerService ecs, IDelayProcessingService dps, IPeriodicCleanupService pcs)
     {
         _logger = logger;
 
+        _options = options;
         _initialisationService = ins;
         _eventPublisherService = eps;
         _eventConsumerService = ecs;
         _delayProcessingService = dps;
+        _periodicCleanupService = pcs;
 
         _systenShutdown = new CancellationTokenSource();
         AppDomain.CurrentDomain.ProcessExit += (sender, args) => _systenShutdown.Cancel(); 
@@ -90,14 +95,15 @@ public class Program
         var backgroundTasks = new Dictionary<string,Task>() { 
             {nameof(IEventConsumerService), Task.Run(async () => await _eventConsumerService.RunAsync(_systenShutdown.Token)) }, 
             {nameof(IEventPublisherService), Task.Run(async () => await _eventPublisherService.RunAsync(_systenShutdown.Token))}, 
-            {nameof(IDelayProcessingService), Task.Run(async () => await _delayProcessingService.RunAsync(_systenShutdown.Token)) } 
+            {nameof(IDelayProcessingService), Task.Run(async () => await _delayProcessingService.RunAsync(_systenShutdown.Token)) },
+            {nameof(IPeriodicCleanupService), Task.Run(async () => await _periodicCleanupService.RunAsync(_systenShutdown.Token)) }
         };
         
         // do an initialisation wait check
         var initialised = await Task.WhenAll(
-            Task.Run( () => _eventPublisherService.ReadySignal.Wait(MaximumStartTimeout)),
-            Task.Run( () => _eventConsumerService.ReadySignal.Wait(MaximumStartTimeout)),
-            Task.Run( () => _delayProcessingService.ReadySignal.Wait(MaximumStartTimeout)),
+            Task.Run( () => _eventPublisherService.ReadySignal.Wait(_options.MaximumStartTimeout)),
+            Task.Run( () => _eventConsumerService.ReadySignal.Wait(_options.MaximumStartTimeout)),
+            Task.Run( () => _delayProcessingService.ReadySignal.Wait(_options.MaximumStartTimeout)),
             
             // this is run once and then exits, so we should do it this loop rather that in the background tasks group
             Task.Run(() => _initialisationService.RunAsync(_systenShutdown.Token))
@@ -117,14 +123,14 @@ public class Program
 
         if (!_systenShutdown.IsCancellationRequested)
         {
-            _logger.LogInformation("Attempting clean shutdown. Will take {TotalSeconds} seconds", MaxCleanShutdownWait.TotalSeconds);
+            _logger.LogInformation("Attempting clean shutdown. Will take {TotalSeconds} seconds", _options.MaxCleanShutdownWait.TotalSeconds);
             await _systenShutdown.CancelAsync();
             
             
             Task.WaitAll(backgroundTasks
                 .Where(x => !x.Value.IsFaulted)
                 .Select(x => x.Value)
-                .ToArray(), MaxCleanShutdownWait);
+                .ToArray(), _options.MaxCleanShutdownWait);
         }
         
         // now check to see if any of the background tasks have returned a fault state, we're probably interested in that fact

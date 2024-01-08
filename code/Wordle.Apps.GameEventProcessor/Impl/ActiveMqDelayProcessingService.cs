@@ -16,7 +16,7 @@ namespace Wordle.Apps.GameEventProcessor.Impl;
 
 public class ActiveMqDelayProcessingService : IDelayProcessingService
 {
-    private readonly ActiveMqDelayProcessingOptions _options;
+    private readonly GameEventProcessorOptions _options;
     private readonly ILogger<ActiveMqDelayProcessingService> _logger;
     private readonly IDistributedLockProvider _lockProvider;
     private readonly IClock _clock;
@@ -26,7 +26,7 @@ public class ActiveMqDelayProcessingService : IDelayProcessingService
 
     public ManualResetEventSlim ReadySignal => _options.ReadySignal;
 
-    public ActiveMqDelayProcessingService(ActiveMqDelayProcessingOptions options, IMediator mediator, IDistributedLockProvider lockProvider, IClock clock, ILogger<ActiveMqDelayProcessingService> logger)
+    public ActiveMqDelayProcessingService(GameEventProcessorOptions options, IMediator mediator, IDistributedLockProvider lockProvider, IClock clock, ILogger<ActiveMqDelayProcessingService> logger)
     {
         _options = options;
         _mediator = mediator;
@@ -193,16 +193,24 @@ public class ActiveMqDelayProcessingService : IDelayProcessingService
 
     public async Task HandleTimeout(TimeoutPayload payload)
     {
-        await using var dLock = await _lockProvider.AcquireLockAsync($"Session:{payload.SessionId}", _options.LockTimeout);
-        try
+        var dLockKey = _options.SessionLockKey(payload.SessionId);
+        await using (var dLock = await _lockProvider.TryAcquireLockAsync(dLockKey, _options.LockTimeout))
         {
-            await _mediator.Send(new EndActiveRoundCommand(payload.SessionId, payload.SessionVersion,
-                payload.RoundId, payload.RoundVersion));
-        }
-        catch (EndActiveRoundCommandException x)
-        {
-            _logger.LogError("Attempt to end Round {RoundId} for Session {SessionId} failed with message {Message}",
-                payload.RoundId, payload.SessionId, x.Message);
+            if (dLock == null)
+            {
+                _logger.LogWarning("Failed to obtain lock {LockKey}, aborting", dLockKey);
+            }
+            
+            try
+            {
+                await _mediator.Send(new EndActiveRoundCommand(payload.SessionId, payload.SessionVersion,
+                    payload.RoundId, payload.RoundVersion));
+            }
+            catch (EndActiveRoundCommandException x)
+            {
+                _logger.LogError("Attempt to end Round {RoundId} for Session {SessionId} failed with message {Message}",
+                    payload.RoundId, payload.SessionId, x.Message);
+            }
         }
     }
 }

@@ -24,15 +24,11 @@ using Wordle.Dictionary.DynamoDb;
 using Wordle.Dictionary.EfCore;
 using Wordle.EfCore;
 using Wordle.Events;
-using Wordle.Kafka.Consumer;
-using Wordle.Kafka.Publisher;
 using Wordle.Model;
 using Wordle.Persistence;
 using Wordle.Persistence.DynamoDb;
 using Wordle.Persistence.EfCore;
 using Wordle.QueryHandlers.EfCore;
-using Wordle.Redis.Consumer;
-using Wordle.Redis.Publisher;
 using Wordle.Render;
 using static Wordle.Common.Actions;
 
@@ -204,43 +200,6 @@ public class AutofacConfigurationBuilder
         return this;
     }
 
-    public AutofacConfigurationBuilder AddKafkaEventPublishing(string instanceType, string instanceId)
-    {
-        _builder.RegisterInstance(new KafkaEventPublisherSettings()
-        {
-            BootstrapServers = EnvironmentVariables.KafkaBootstrapServers,
-            Topic = EnvironmentVariables.KafkaEventTopic,
-            InstanceType = instanceType,
-            InstanceId = instanceId,
-        }).As<KafkaEventPublisherSettings>();
-
-        _builder.RegisterType<KafkaEventPublisher>()
-            .As<KafkaEventPublisher>();
-
-        MediatrAssemblies.Add(typeof(KafkaEventPublisher).Assembly);
-
-        return this;
-    }
-
-    public AutofacConfigurationBuilder AddKafkaEventConsuming(string instanceType, string instanceId)
-    {
-        _builder.RegisterInstance(new KafkaEventConsumerOptions()
-        {
-            BootstrapServers = EnvironmentVariables.KafkaBootstrapServers,
-            Topic = EnvironmentVariables.KafkaEventTopic,
-            InstanceType = instanceType,
-            InstanceId = instanceId
-        }).As<KafkaEventConsumerOptions>();
-
-        _builder
-            .RegisterType<KafkaEventConsumerService>()
-            .As<KafkaEventConsumerService>()
-            .SingleInstance();
-
-        MediatrAssemblies.Add(typeof(KafkaEventConsumerService).Assembly);
-
-        return this;
-    }
 
     public AutofacConfigurationBuilder AddEventBridgePublishing(string instanceType, string instanceId)
     {
@@ -275,58 +234,7 @@ public class AutofacConfigurationBuilder
 
         return this;
     }
-
-    public AutofacConfigurationBuilder AddRedisEventPublisher(string instanceType, string instanceId,
-        int maxRetries = 5)
-    {
-        _builder.RegisterInstance(new RedisPublisherSettings()
-        {
-            RedisHost = EnvironmentVariables.RedisServer,
-            RedisTopic = EnvironmentVariables.RedisTopic,
-            InstanceType = instanceType,
-            InstanceId = instanceId,
-            MaxPublishRetries = maxRetries
-        }).As<RedisPublisherSettings>();
-
-        // singleton instnce that performs the actual redis logic
-        _builder
-            .RegisterType<DefaultRedisPublisher>()
-            .As<IRedisPublisher>()
-            .SingleInstance()
-            .OnActivated(x => x.Instance.Start());
-
-        // wrapper that implements INotificationHandler that delegates to the IRedisPublisher
-        _builder
-            .RegisterType<RedisEventPublisher>()
-            .As<RedisEventPublisher>();
-
-        MediatrAssemblies.Add(typeof(RedisEventPublisher).Assembly);
-
-        return this;
-    }
-
-    public AutofacConfigurationBuilder AddRedisEventConsumer(string instanceType, string instanceId, int maxRetries = 5)
-    {
-        _builder.RegisterInstance(new RedisConsumerSettings()
-        {
-            RedisHost = EnvironmentVariables.RedisServer,
-            RedisTopic = EnvironmentVariables.RedisTopic,
-            InstanceType = instanceType,
-            InstanceId = instanceId,
-            MaxConsumeRetries = maxRetries
-        }).As<RedisConsumerSettings>();
-
-        _builder
-            .RegisterType<RedisEventConsumerService>()
-            .As<IEventConsumerService>()
-            .SingleInstance()
-            .OnActivated(x => x.Instance.Start());
-
-        MediatrAssemblies.Add(typeof(RedisEventConsumerService).Assembly);
-
-        return this;
-    }
-
+    
     public AutofacConfigurationBuilder AddActiveMqEventPublisher(string instanceType, string instanceId, bool useHostedService = false)
     {
         _builder.RegisterInstance(new ActiveMqEventPublisherOptions()
