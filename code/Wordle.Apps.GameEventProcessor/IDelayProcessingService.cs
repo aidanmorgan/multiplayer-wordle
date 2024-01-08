@@ -1,5 +1,6 @@
 
 using Wordle.Api.Common;
+using Wordle.Model;
 using Wordle.Queries;
 
 namespace Wordle.Apps.GameEventProcessor;
@@ -11,7 +12,7 @@ public interface IDelayProcessingService
 {
     ManualResetEventSlim ReadySignal { get; }
     
-    Task ScheduleRoundUpdate(VersionId session, VersionId round, DateTimeOffset executionTime, CancellationToken token);
+    Task ScheduleRoundUpdate(VersionId<Session> session, VersionId<Round> round, DateTimeOffset executionTime, CancellationToken token);
 
     Task RunAsync(CancellationToken token);
     

@@ -1,17 +1,25 @@
+using Medallion.Threading;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Wordle.Queries;
 
 namespace Wordle.Apps.GameEventProcessor.Impl;
 
 public class InitialisationService : IInitialisationService
 {
+    private readonly GameEventProcessorOptions _options;
     private readonly IMediator _mediator;
     private readonly IDelayProcessingService _delayProcessingService;
+    private readonly IDistributedLockProvider _lockProvider;
+    private readonly ILogger<InitialisationService> _logger;
 
-    public InitialisationService(IMediator mediator, IDelayProcessingService svc)
+    public InitialisationService(IMediator mediator, IDelayProcessingService svc, IDistributedLockProvider lockProvider, GameEventProcessorOptions options, ILogger<InitialisationService> logger)
     {
         _mediator = mediator;
         _delayProcessingService = svc;
+        _lockProvider = lockProvider;
+        _options = options;
+        _logger = logger;
     }
     
     public async Task<bool> RunAsync(CancellationToken token)
@@ -20,7 +28,17 @@ public class InitialisationService : IInitialisationService
 
         foreach (var pair in activeSessions)
         {
-            await _delayProcessingService.ScheduleRoundUpdate(pair.Session, pair.Round, pair.RoundExpiry.Value, token);
+            var dLockKey = _options.SessionLockKey(pair.SessionId);
+            await using (var dLock = await _lockProvider.TryAcquireLockAsync(dLockKey, _options.DistributedLockTimeout, cancellationToken: token))
+            {
+                if (dLock == null)
+                {
+                    _logger.LogWarning("Failed to obtain lock {LockKey}, aborting", dLockKey);
+                }
+
+                await _delayProcessingService.ScheduleRoundUpdate(pair.VersionedSession, pair.VersionedRound,
+                    pair.RoundExpiry, token);
+            }
         }
 
         return !token.IsCancellationRequested;

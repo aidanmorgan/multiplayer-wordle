@@ -7,7 +7,7 @@ using Wordle.Queries;
 
 namespace Wordle.QueryHandlers.EfCore;
 
-public class GetActiveSessionForTenantQueryHandler : IRequestHandler<GetActiveSessionForTenantQuery, VersionId?>
+public class GetActiveSessionForTenantQueryHandler : IRequestHandler<GetActiveSessionForTenantQuery, VersionId<Session>?>
 {
     private readonly WordleEfCoreSettings _context;
 
@@ -16,7 +16,7 @@ public class GetActiveSessionForTenantQueryHandler : IRequestHandler<GetActiveSe
         _context = settings;
     }
 
-    public async Task<VersionId?> Handle(GetActiveSessionForTenantQuery request, CancellationToken cancellationToken)
+    public async Task<VersionId<Session>?> Handle(GetActiveSessionForTenantQuery request, CancellationToken cancellationToken)
     {
         var result = await _context.Connection.QueryAsync<Session>(
             "SELECT * FROM sessions WHERE state = @state AND tenant = @tenant ORDER BY createdat DESC", new
@@ -32,7 +32,7 @@ public class GetActiveSessionForTenantQueryHandler : IRequestHandler<GetActiveSe
         }
         else
         {
-            return new VersionId()
+            return new VersionId<Session>()
             {
                 Id = entry.Id,
                 Version = entry.Version

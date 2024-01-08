@@ -1,3 +1,5 @@
+using System.Runtime.Serialization;
+
 namespace Wordle.Model;
 
 public class Session : IAggregate, IVersioned
@@ -16,6 +18,8 @@ public class Session : IAggregate, IVersioned
     
     public DateTimeOffset? ActiveRoundEnd { get; set; }
 
+    [IgnoreDataMember]
+    public VersionId<Session> VersionedSession => new VersionId<Session>(Id, Version);
     public Session()
     {
         CreatedAt = DateTimeOffset.MinValue;

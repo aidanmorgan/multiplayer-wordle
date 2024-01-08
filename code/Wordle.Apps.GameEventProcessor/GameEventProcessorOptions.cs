@@ -30,7 +30,7 @@ public class GameEventProcessorOptions
     public TimeSpan PublishRetryDelay { get; init; } = TimeSpan.FromSeconds(5);
     public TimeSpan MaximumPublishRetryTime { get; init; } = TimeSpan.FromMinutes(10);
 
-    public int PublishRetryCount =>
+    private int PublishRetryCount =>
         (int)Math.Floor(MaximumPublishRetryTime.TotalMilliseconds / PublishRetryDelay.TotalMilliseconds);
 
     public AsyncRetryPolicy PublishRetryPolicy => Policy
@@ -52,7 +52,7 @@ public class GameEventProcessorOptions
     /// </summary>
     public TimeSpan MaximumConsumerRetryTime { get; init; } = TimeSpan.FromMinutes(10);
 
-    public int ConsumerRetryCount =>
+    private int ConsumerRetryCount =>
         (int)Math.Floor(MaximumConsumerRetryTime.TotalMilliseconds / ConsumerRetryDelay.TotalMilliseconds);
 
     public AsyncRetryPolicy ConsumerRetryPolicy => Policy
@@ -78,7 +78,7 @@ public class GameEventProcessorOptions
     /// <summary>
     /// How long we should wait to obtain the distributed lock for updating a Session.
     /// </summary>
-    public TimeSpan DistributedLockTimeout { get; set; } = TimeSpan.FromSeconds(5);
+    public TimeSpan DistributedLockTimeout { get; set; } = TimeSpan.FromSeconds(20);
 
     /// <summary>
     /// Used to create a distributed lock key given a session id.

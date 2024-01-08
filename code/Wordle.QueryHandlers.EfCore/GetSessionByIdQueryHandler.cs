@@ -39,7 +39,7 @@ public class GetSessionByIdQueryHandler : IRequestHandler<GetSessionByIdQuery, S
             result.Session = session;
         }
 
-        if (request.VersionAware && session.Version != request.Version)
+        if (request.SpecificVersionRequired && session.Version != request.Version)
         {
             _logger.LogWarning("Attempt to load Session with Id {Id} expected Version {Version} but got {SessionVersion}", request.Id, request.Version, session.Version);
             return null;

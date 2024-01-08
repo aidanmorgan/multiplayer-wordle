@@ -15,6 +15,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\Wordle.Model\Wordle.Model.csproj" />
+      <ProjectReference Include="..\Wordle.Queries\Wordle.Queries.csproj" />
     </ItemGroup>
 
 </Project>

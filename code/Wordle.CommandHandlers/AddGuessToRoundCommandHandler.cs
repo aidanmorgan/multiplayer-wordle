@@ -54,7 +54,7 @@ public class AddGuessToRoundCommandHandler : IRequestHandler<AddGuessToRoundComm
                     $"Cannot add Guess to Round for Session {request.SessionId}, the round has expired.");
             }
         }
-
+        
         // BUG:
         // There used to be a check here to make sure that the guess timestamp was before the round end time, but
         // it creates an interesting race condition where the round end is in the process of being updated.
@@ -72,7 +72,7 @@ public class AddGuessToRoundCommandHandler : IRequestHandler<AddGuessToRoundComm
         {
             Id = guessId,
             Timestamp = request.Timestamp,
-            Word = request.Word.ToUpperInvariant(),
+            Word = request.Word.Trim().ToUpperInvariant(),
             RoundId = round.Id,
             SessionId = session.Id,
             User = request.User

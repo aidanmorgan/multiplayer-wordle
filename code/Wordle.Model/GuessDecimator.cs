@@ -10,6 +10,8 @@ public class GuessDecimator : IGuessDecimator
     public List<Guess> DecimateGuesses(IList<Guess> guesses, Options options)
     {
         var truncatedUserVotes = guesses
+            // filter here so the words aren't entirely stupid or out of whack
+            .Where(x => x.Word.Length == options.WordLength)
             .AsParallel()
             .GroupBy(x => x.User)
             .Select(x =>

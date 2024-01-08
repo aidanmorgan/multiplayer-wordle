@@ -17,12 +17,11 @@ public class GameEventProcessorHandlers :
     INotificationHandler<NewRoundStarted>,
     INotificationHandler<RoundExtended>
 {
-    private readonly Guid _instance = Guid.NewGuid();
+    private readonly GameEventProcessorOptions _options;
     private readonly IMediator _mediator;
     private readonly IDelayProcessingService _delayProcessingService;
     private readonly IDistributedLockProvider _lockProvider;
     private readonly ILogger<GameEventProcessorHandlers> _logger;
-    private readonly GameEventProcessorOptions _options;
 
     public GameEventProcessorHandlers(IMediator mediator, 
         GameEventProcessorOptions options,
@@ -50,7 +49,7 @@ public class GameEventProcessorHandlers :
             var q = await _mediator.Send(new GetSessionByIdQuery(detail.SessionId, detail.SessionVersion));
             if (q == null)
             {
-                _logger.LogError("Could not load Session with id {SessionId}", detail.SessionId);
+                _logger.LogError("Could not load Session {SessionId}", detail.VersionedSession);
                 return;
             }
 
@@ -58,7 +57,7 @@ public class GameEventProcessorHandlers :
 
             if (session.State != SessionState.ACTIVE)
             {
-                _logger.LogError("Could not update Session with id {SessionId}, it is not ACTIVE", detail.SessionId);
+                _logger.LogError("Could not update Session with id {SessionId}, it is not ACTIVE", detail.VersionedSession);
                 return;
             }
 
@@ -68,17 +67,14 @@ public class GameEventProcessorHandlers :
             var lastRound = rounds.FirstOrDefault(x => x.Id == detail.RoundId);
             if (lastRound == null)
             {
-                _logger.LogError("Could not find Round with id {RoundId} in the rounds for Session {SessionId}",
-                    detail.RoundId, detail.SessionId);
                 return;
             }
 
             if (string.Equals(lastRound.Guess, session.Word, StringComparison.InvariantCultureIgnoreCase))
             {
                 _logger.LogInformation("Correct answer found, ending Session {SessionId} with SUCCESS",
-                    detail.SessionId);
-                await _mediator.Send(new EndSessionCommand(detail.SessionId, detail.SessionVersion, session.Word, true,
-                    false));
+                    detail.VersionedSession);
+                await _mediator.Send(new EndSessionCommand(detail.SessionId, detail.SessionVersion, session.Word, true, false), cancellationToken);
                 return;
             }
             else
@@ -87,22 +83,21 @@ public class GameEventProcessorHandlers :
                 {
                     if (rounds.Count < options.NumberOfRounds)
                     {
-                        var roundId =
-                            await _mediator.Send(new CreateNewRoundCommand(detail.SessionId, detail.SessionVersion));
+                        var roundId = await _mediator.Send(new CreateNewRoundCommand(detail.SessionId, detail.SessionVersion));
                         _logger.LogInformation("Created new round {RoundId} for Session {SessionId}", roundId,
-                            detail.SessionId);
+                            detail.VersionedSession);
                         return;
                     }
                     else
                     {
-                        _logger.LogInformation("Incorrect final guess, ending Session {SessionId}", detail.SessionId);
+                        _logger.LogInformation("Incorrect final guess, ending Session {SessionId}", detail.VersionedSession);
                         await _mediator.Send(new EndSessionCommand(detail.SessionId, detail.SessionVersion,
                             session.Word, false, true));
                     }
                 }
                 catch (CommandException x)
                 {
-                    _logger.LogError(x, "Error update state of Session {DetailSessionId}", detail.SessionId);
+                    _logger.LogError(x, "Error update state of Session {DetailSessionId}", detail.VersionedSession);
                 }
             }
         }
@@ -118,38 +113,15 @@ public class GameEventProcessorHandlers :
                 _logger.LogWarning("Failed to obtain lock {LockKey}, aborting", lockKey);
             }
 
-            _logger.LogInformation("NewRoundStarted - {Id}, Handler - {Instance}", n.Id, _instance);
-
-            var session = new VersionId()
-            {
-                Id = n.SessionId,
-                Version = n.SessionVersion
-            };
-
-            var round = new VersionId()
-            {
-                Id = n.RoundId,
-                Version = n.RoundVersion
-            };
-
-            await _delayProcessingService.ScheduleRoundUpdate(session, round, n.RoundExpiry, cancellationToken);
+            _logger.LogInformation("NewRoundStarted: {Id}, Handler: {InstanceType}{Instance}", n.VersionedSession, _options.InstanceType, _options.InstanceId);
+            
+            await _delayProcessingService.ScheduleRoundUpdate(n.VersionedSession, n.VersionedRound, n.RoundExpiry, cancellationToken);
         }
     }
 
     public async Task Handle(RoundExtended n, CancellationToken cancellationToken)
     {
-        await _delayProcessingService.ScheduleRoundUpdate(
-            new VersionId()
-            {
-                Id = n.SessionId,
-                Version = n.SessionVersion
-            }, new VersionId()
-            {
-                Id = n.RoundId,
-                Version = n.RoundVersion
-            },n.RoundExpiry, cancellationToken);
-        
-        _logger.LogInformation("RoundExtended: {RoundId}, Handler Instance: - {EventHandlerId}, Next Check: {Timestamp}", n.Id, _instance, n.RoundExpiry);
-
+        await _delayProcessingService.ScheduleRoundUpdate(n.VersionedSession, n.VersionedRound, n.RoundExpiry, cancellationToken);
+        _logger.LogInformation("RoundExtended: {SessionId}, Next Check: {Timestamp}", n.VersionedSession, n.RoundExpiry);
     }
 }

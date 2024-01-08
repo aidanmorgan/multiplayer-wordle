@@ -12,8 +12,6 @@ services:
     environment:
       - ASPNETCORE_URLS=http://[::]:5100
       - INSTANCE_ID=f14e672b-3912-4c98-9e67-da2612944151
-    volumes:
-      - $HOME/.aws/credentials:/home/app/.aws/credentials:ro
     ports:
       - 5100:5100
     links: 
@@ -40,8 +38,6 @@ services:
     environment:
       - ASPNETCORE_URLS=http://[::]:5200
       - INSTANCE_ID=98456bad-464e-42d8-a0fc-48ea7d494ae5
-    volumes:
-      - $HOME/.aws/credentials:/home/app/.aws/credentials:ro
     ports:
       - 5200:5200
     links:
@@ -67,8 +63,7 @@ services:
       - INSTANCE_ID=c596347c-e72f-4e61-9803-8dd407110872 
       - IMAGES_BASEDIRECTORY=/var/lib/wordle-images
     volumes:
-      - $HOME/.aws/credentials:/home/app/.aws/credentials:ro
-      - images-data:/var/lib/wordle-images:r
+      - ../data/images:/var/lib/wordle-images:r
     ports:
       - 5300:5300
     links:
@@ -89,8 +84,6 @@ services:
     env_file:
       - .development-docker-clustered.env
       - .sensitive-docker-clustered.env
-    volumes:
-      - $HOME/.aws/credentials:/home/app/.aws/credentials:ro  
     deploy:
       replicas: 5
       mode: replicated
@@ -109,6 +102,7 @@ services:
       dockerfile: Wordle.Apps.BoardGenerator/Dockerfile
       args:
         - BUILD_CONFIGURATION=Development
+    user: "root"
     env_file:
       - .development-docker-clustered.env
       - .sensitive-docker-clustered.env
@@ -116,9 +110,7 @@ services:
       - IMAGES_BASEDIRECTORY=/var/lib/wordle-images
       - INSTANCE_ID=577c51ab-e2bc-4bc7-8cf6-e04b917076e4        
     volumes:
-      - $HOME/.aws/credentials:/home/app/.aws/credentials:ro
-      - ./Wordle.Apps.BoardGenerator/deps:/usr/share/fonts:ro  
-      - images-data:/var/lib/wordle-images:rw     
+      - ../data/images:/var/lib/wordle-images:z     
     links:
       - activemq-1
       - activemq-2
@@ -229,7 +221,6 @@ services:
 
 volumes:
   postgres-data:
-  images-data:
   activemq-data-1:
   activemq-data-2:
   activemq-data-3:

@@ -1,7 +1,5 @@
-using Amazon.S3;
 using MediatR;
 using Microsoft.Extensions.Logging;
-using Wordle.Apps.Common;
 using Wordle.Events;
 using Wordle.Queries;
 using Wordle.Render;
@@ -28,21 +26,34 @@ public class BoardGeneratorHandlers : INotificationHandler<RoundEnded>
         var session = await _mediator.Send(new GetSessionByIdQuery(ev.SessionId, ev.SessionVersion), token);
         if (session == null)
         {
-            _logger.LogError("Attempting to generate for Session {SessionId}, but could not load", ev.SessionId);
+            _logger.LogError("Attempting to generate for Session {SessionId}, but could not load", ev.VersionedSession);
             return;
         }
-                            
-        var round = session?.Rounds.FirstOrDefault(x => x.Id == ev.RoundId);
-        if (round == null)
+
+        // we will hit a fun ordering problem here, if the board processor runs after the end session has created a new round
+        // then we will pick up the new round, so filter out any rounds that were created AFTER the event was spawned to
+        // keep it to the same time as when the event was generated
+        var rounds = session
+            .Rounds
+            .Where(x => x.CreatedAt < ev.Timestamp)
+            .OrderBy(x => x.CreatedAt)
+            .ToList();
+
+        MemoryStream stream = null;
+        using (stream = new MemoryStream())
         {
-            _logger.LogError("Attempting to generate for Session {SessionId} and Round {RoundId} but Round could not be found", ev.SessionId, ev.RoundId);
-            return;
+            _renderer.Render(
+                rounds.Select(x => new DisplayWord(x.Guess, x.Result)).ToList() ?? new List<DisplayWord>(),
+                null, RenderOutput.Svg, stream);
+
+            // need to actually push the data to the stream so we can read it back.
+            await stream.FlushAsync(token);
+            stream.Close();
         }
 
-        using var stream = new MemoryStream();
-        _renderer.Render(session?.Rounds.Select(x => new DisplayWord(x.Guess, x.Result)).ToList() ?? new List<DisplayWord>(), null, RenderOutput.Svg, stream);
+        using var outputStream = new MemoryStream(stream.GetBuffer());
+        var location = await _storage.StoreBoard(session.Session, rounds, RenderOutput.Svg, outputStream, token);
 
-        var location = await _storage.StoreBoard(ev.SessionId, ev.RoundId, RenderOutput.Svg, stream, token);
-        _logger.LogInformation("Uploaded board image: {ImageFilename}", location);
-    } 
+        _logger.LogInformation("Board for {Session} and {Round} written to {Location}", ev.VersionedSession, ev.VersionedRound, location);
+    }
 }

@@ -9,8 +9,10 @@ using Polly;
 using Wordle.ActiveMq.Common;
 using Wordle.Clock;
 using Wordle.Commands;
+using Wordle.Model;
 using Wordle.Queries;
 using static Wordle.ActiveMq.Common.ActiveMqUtil;
+using Session = Wordle.Model.Session;
 
 namespace Wordle.Apps.GameEventProcessor.Impl;
 
@@ -35,7 +37,7 @@ public class ActiveMqDelayProcessingService : IDelayProcessingService
         _logger = logger;
     }
 
-    public Task ScheduleRoundUpdate(VersionId session, VersionId round, DateTimeOffset executionTime, CancellationToken token)
+    public Task ScheduleRoundUpdate(VersionId<Session> session, VersionId<Round> round, DateTimeOffset executionTime, CancellationToken token)
     {
         _publishQueue.Add(new TimeoutPayload(session.Id, session.Version, round.Id, round.Version, executionTime), token);
         return Task.CompletedTask;
@@ -169,12 +171,12 @@ public class ActiveMqDelayProcessingService : IDelayProcessingService
                         message.Properties["_AMQ_SCHED_DELIVERY"] = delayMillis;
 
                         _logger.LogInformation(
-                            "Check for Session {SessionId} in {DelaySeconds} seconds (at: {JobTime})", value.SessionId,
+                            "Check for Session {SessionId} in {DelaySeconds} seconds (at: {JobTime})", value.VersionedSession,
                             (delayMillis / 1000), value.Timeout);
                     }
                     else
                     {
-                        _logger.LogInformation("Immediate check for Session {SessionId} submitted", value.SessionId);
+                        _logger.LogInformation("Immediate check for Session {SessionId} submitted", value.VersionedSession);
                     }
 
                     await producer.SendAsync(message);
@@ -207,7 +209,7 @@ public class ActiveMqDelayProcessingService : IDelayProcessingService
             }
             catch (EndActiveRoundCommandException x)
             {
-                _logger.LogError("Attempt to end Round {RoundId} for Session {SessionId} failed with message {Message}",payload.RoundId, payload.SessionId, x.Message);
+                _logger.LogError("Attempt to end Round {RoundId} for Session {SessionId} failed with message {Message}",payload.VersionedRound, payload.VersionedSession, x.Message);
             }
         }
     }

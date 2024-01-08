@@ -46,18 +46,17 @@ public class WebsocketTenantService : IWebsocketTenantService
         var observable = GetObservableForTenant(notification.Tenant);
         if (observable == null)
         {
-            _logger.LogInformation("Received guess for {Tenant} but there are no listeners.", notification.Tenant);
             return;
         }
         
         var sessionId = await _mediator.Send(new GetActiveSessionForTenantQuery(notification.Tenant), ct);
-        if (!sessionId.HasValue)
+        if (sessionId == null)
         {
             return;
         }
         
         var guessesTask = _mediator.Send(new GetGuessesForRoundQuery(notification.RoundId), ct);
-        var sessionTask = _mediator.Send(new GetSessionByIdQuery(sessionId.Value.Id, null), ct);
+        var sessionTask = _mediator.Send(new GetSessionByIdQuery(sessionId.Id, null), ct);
         await Task.WhenAll(guessesTask, sessionTask);
 
         var guesses = guessesTask.Result;
@@ -76,8 +75,6 @@ public class WebsocketTenantService : IWebsocketTenantService
             .OrderByDescending(x => x.Users.Length)
             .ThenBy(x => x.Word)
             .ToArray();
-        
-
         
         ((Subject<ArraySegment<byte>>)observable)?.OnNextJson(new EventPayload()
         {

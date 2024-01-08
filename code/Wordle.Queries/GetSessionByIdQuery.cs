@@ -14,9 +14,10 @@ public class GetSessionByIdQuery : IRequest<SessionQueryResult?>
 {
     public Guid Id { get; set; }
     public long Version { get; set; }
-
-    public bool VersionAware { get; set; } = true;
     
+    // this is a workaround to allow the same query to be used for querying when we want to add a guess to a session
+    // adding guesses doesn't change any of the version numbers, they are effectively immutable
+    public bool SpecificVersionRequired { get; set; } = true;
     public bool IncludeOptions { get; set; } = true;
     public bool IncludeRounds { get; set; } = true;
 
@@ -33,12 +34,12 @@ public class GetSessionByIdQuery : IRequest<SessionQueryResult?>
 
         if (version.HasValue)
         {
-            VersionAware = true;
+            SpecificVersionRequired = true;
             Version = version.Value;
         }
         else
         {
-            VersionAware = false;
+            SpecificVersionRequired = false;
         }
     }
 }

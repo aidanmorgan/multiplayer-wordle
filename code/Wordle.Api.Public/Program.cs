@@ -2,6 +2,7 @@ using System.Threading.RateLimiting;
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.RateLimiting;
+using Wordle.Api.Public.Handlers;
 using Wordle.Apps.Common;
 
 namespace Wordle.Api.Public;
@@ -23,8 +24,8 @@ public class Program
 
             conf.Callback(x =>
             {
-                x.RegisterType<LocalDiskImageHandler>()
-                    .As<IBoardImageHandler>()
+                x.RegisterType<LocalDiskImageLoader>()
+                    .As<IBoardImageLoader>()
                     .WithParameter(new PositionalParameter(0, EnvironmentVariables.ImagesDirectory))
                     .SingleInstance();
             });
